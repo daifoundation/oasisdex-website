@@ -14,6 +14,9 @@ const Index = () => (
     <Lead />
     <Marketing />
     <PartnersSmall />
+    <div style={{display: 'none'}}>
+      test
+    </div>
   </BaseLayout>
 );
 
