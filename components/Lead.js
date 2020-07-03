@@ -18,11 +18,11 @@ const Lead = () => {
         OasisDEX is a fully decentralized exchange protocol that allows anyone
         to provide and access liquidity on chain, with limit order support.
       </Text>
-      <Link href="/docs/introduction">
+      <a href="/docs/introduction">
         <Button as="a" variant="textual">
           Go to Docs <Icon name="arrow_right" />
         </Button>
-      </Link>
+      </a>
     </Container>
   );
 };
