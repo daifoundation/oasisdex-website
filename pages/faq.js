@@ -2,7 +2,7 @@
 import { jsx, Heading, Container } from 'theme-ui';
 import Head from 'next/head';
 import BaseLayout from '../layouts/BaseLayout';
-import Questions from '../components/Questions';
+import QuestionsStatic from '../components/QuestionsStatic';
 
 const QUESTIONS_AND_ANSWERS = [{
   q: 'What is the OasisDEX Protocol?',
@@ -30,7 +30,7 @@ const FAQs = () => (
       <Heading variant="largeHeading" as="h1">
         FAQs
       </Heading>
-      <Questions questions={QUESTIONS_AND_ANSWERS} sx={{marginTop: '20px'}}/>
+      <QuestionsStatic questions={QUESTIONS_AND_ANSWERS} sx={{marginTop: '20px'}}/>
     </Container>
   </BaseLayout>
 );
