@@ -15,7 +15,7 @@ const Index = () => (
     <Marketing />
     <PartnersSmall />
     <div style={{display: 'none'}}>
-      test 2
+      test 3
     </div>
   </BaseLayout>
 );
