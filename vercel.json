@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "routes": [
+    {
+      "src": "^/(.*)",
+      "headers": {
+        "X-Frame-Options": "Deny",
+        "X-Content-Type-Options": "nosniff",
+        "X-XSS-protection": "1; mode=block"
+      }
+    }
+  ]
+}
