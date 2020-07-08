@@ -1,0 +1,64 @@
+import DocsLayout from '../../../layouts/DocsLayout';
+import { Image } from 'theme-ui';
+
+<DocsLayout>
+
+# Smart Contract API Reference
+
+## Overview
+
+1. **Matching Engine:** This API is used by most users, as it is the API for accessing the sorted order book and matching engine. The order book is implemented as a double-linked sorted list and at any one time the list should return sorted.
+2. **Average Price Fill-Or-Kill Orders:** This API is dedicated to **Takers** and works by executing a special type of order called "Average Price fill-or-kill order". This order type is using the order book to calculate an average price with a threshold based on the amount the user wants to sell or buy. This order will never stay on the order book and if it cannot be matched (due to exceeding the gas block limit or by reaching the threshold), the transaction will revert. For example, the discontinued frontend [oasis.direct](https://oasis.direct) used this, and it is now what **[Oasis Instant](http://oasis.app/instant)** uses.
+3. **Unsorted List Operations (\*\*\*\***This API is largely deprecated\*):**\* This covers all actions for accessing an “unsorted order book”. An unsorted order book works as a placeholder for orders before they are moved to the sorted order book by external actors, called [Keepers](https://github.com/makerdao/developerguides/blob/master/keepers/auctions/auctions-101.md#keepers). This API can also be used for OTC trades, although it is important to note because this can be done by anyone, there is no guarantee that the order will **not\*\* be moved to the sorted order book. When placing orders in the unsorted order book, it costs much less gas to execute, as there is no matching required on-chain.
+
+   **Note:** This feature is largely deprecated. It will likely be removed in the upgraded version of the contract.
+
+4. **Administrative Methods:** This includes all of the administrative functions used to set the market parameters.
+
+# Key Functionalities within each group
+
+## 1. Matching Market:
+
+- **getBestOffer()** - gets an offer from the top of the order book.
+- **getWorseOffer()/getBetterOffer()** - these are both used for the navigation through an order book.
+- **getOfferCount()** - return the size of the order book.
+- **getOffer()** - return information about the order with a given order ID.
+- **buy()** - the buy function is used to fill a specific order (“cherrypicks”). By calling this function, it will execute and settle a trade all within one atomic transaction.
+  - **Note:** Can be called externally by the user, and is also called internally by the matching engine (see **offer()** method for more details).
+- **take()** - provides the byte32 version of **buy().**
+- **cancel()** - cancels an order with a given order ID.
+- **kill()** - provides the byte32 version of cancel().
+- **offer(pay_amt, pay_gem, buy_amt, buy_gem, pos)** - the main API of the matching engine. This method should be used 99% of the time!
+  - `ERC20 pay_gem` - the maker (ask) to sell specified collateral token (address).
+  - `ERC20 buy_gem` - the taker (ask) buy of a specified collateral token (address).
+  - `uint pay_amt` - the maker (ask) sell amount.
+  - `uint buy_amt` - the taker (ask) buy amount.
+  - `uint pos` - the estimated position to insert an offer.
+- **offer(pay_amt, pay_gem, buy_amt, buy_gem, pos, rounding)** - allows for overwriting the rounding parameter which is set to TRUE as a default.
+
+**Note regarding the Position (pos) parameter:** If you pass `pos=0` this means that the contract will have to find where to insert the order. In the case of a very large order book, it will take a significantly larger amount of gas to insert the new order (may even result in an out of gas error and cause the TX to fail) compared to inserting an order with known a (calculated in advance ) pos. Inserting a known pos is done manually. You must look at the current offers list and see which entry point position corresponds for your new order. This provides a reference point for the contract to know where to begin looking. After this, the contract will make adjustments it if was an incorrect pos or if it was changed during the time between the transaction being sent and mined. The closer you are from the real position, the less amount of gas the contract will spend.
+
+## 2. Average Price Fill-Or-Kill Orders:
+
+- **sellAllAmount(pay_gem, pay_amt, buy_gem, min_fill_amount) -** is used when triggering an ERC20 for ERC20 exchange, where the payAmt is sent to the matching market from the caller. This function attempts to spend all of the pay tokens to buy a specified minimum amount of buy tokens. It is possible for more tokens to be bought if it is possible (depends on token price volatility and specified payAmt).
+- **buyAllAmount(buy_gem, buy_amt, pay_gem, max_fill_amount) -** is used when triggering an ERC20 token for ERC20 token exchange. This function works by attempting to buy a specified amount of buy tokens for a specified amount of pay tokens (up to a certain price). It will calculate the amount to be paid, then that amount is transferred to this matching market. This function is used when there is an amount to buy and it gets the best offer for the described token pair.
+- **getBuyAmount(buy_gem, pay_gem, pay_amt) -** This function is used to get the `buy` amount and will return how much of the collateral token can be bought by paying the specified`pay_amt`. Its purpose is to retrieve the best offer for the token pair.
+- **getPayAmount(pay_gem, buy_gem, buy_amt) -** This function is used to get the `pay` amount and will return how much of the collateral token is needed in order to buy the specified `buy_amt`. This also tries to retrieve the best offer for the token pair.
+
+## 3. Unsorted List Operations (Largely Deprecated)
+
+- **offer(pay_amt, pay_gem, buy_amt, buy_gem)** - creates offer in an unsorted list.
+- **make(pay_gem, buy_gem, pay_amt, buy_amt)** - byte32 version of offer(pay_amt, pay_gem, buy_amt, buy_gem()).
+- **insert(id, pos) -** inserts offer with Id at the pos from unsorted to sorted list
+- **del_rank() -** called by keepers and is used to delete the rank[id] of an offer
+- **getFirstUnsortedOffer() -** This function is used to get the first unsorted offer that was inserted by a contract.
+- **getNextUnsortedOffer() -** This function is used to get the next unsorted offer and is used to cycle through all of the unsorted offers list.
+- **isOfferSorted() -** This function is used to determine/check if an offer has in fact been sorted.
+
+## 4. Administrative Methods
+
+- **stop()** - stops the market.
+- **setMatchingEnabled()** - stops matching engine.
+- **setMinSell()/getMinSell()** - sets/gets the dust limit for a token.
+
+</DocsLayout>

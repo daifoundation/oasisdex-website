@@ -1,13 +1,47 @@
 import Link from 'next/link';
-import { Container, Box, Grid, NavLink } from 'theme-ui';
+import { Container, Box, Grid, NavLink, Heading, Text } from 'theme-ui';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 
 import BaseLayout from '../layouts/BaseLayout';
 
 const NAV_ITEMS = [
-  { name: 'Introduction', link: '/introduction' },
-  { name: 'Use Proxy', link: '/use-proxy' },
+  {
+    name: 'Introduction',
+    items: [
+      { name: 'Getting started', link: '/introduction/getting-started' },
+      {
+        name: 'Design Considerations',
+        link: '/introduction/design-considerations',
+      },
+      {
+        name: 'OasisDEX vs Uniswap',
+        link: '/introduction/oasisdex-uniswap',
+      },
+      {
+        name: 'Key terms',
+        link: '/introduction/key-terms',
+      },
+      {
+        name: 'Order types',
+        link: '/introduction/order-types',
+      },
+    ],
+  },
+  {
+    name: 'Guides',
+    items: [
+      { name: 'Basic trading', link: '/guides/basics' },
+      { name: 'Using proxy', link: '/guides/use-proxy' },
+    ],
+  },
+  {
+    name: 'References',
+    items: [
+      { name: 'Smart Contract API', link: '/references/smart-contract' },
+      { name: 'Deployments', link: '/references/current-deployments' },
+    ],
+  },
 ];
 
 const BASE_PATH = '/docs';
@@ -23,19 +57,39 @@ const DocsLayout = ({ children }) => {
         <title>OasisDEX Protocol - Docs</title>
       </Head>
       <Container my={[3, 5]}>
-        <Grid columns={[1, '200px 1fr']} sx={{ alignItems: 'flex-start' }}>
-          <Grid>
-            {NAV_ITEMS.map(({ name, link }, key) => (
-              <Link href={`${BASE_PATH}${link}`} key={key} passHref>
-                <NavLink
+        <Grid columns={[1, '250px 1fr']} sx={{ alignItems: 'flex-start' }}>
+          <Grid gap="1"> 
+            {NAV_ITEMS.map(({ name, items }, index) => (
+              <React.Fragment key={index}>
+                <Text
                   sx={{
-                    p: 0,
-                    color: isActive(router.pathname, link) ? 'primary' : 'text',
+                    textTransform: 'uppercase',
+                    fontSize: 0,
+                    pt: 4,
+                    color: 'onBackgroundAlt',
+                    letterSpacing: 2,
+                    fontFamily: 'heading',
                   }}
                 >
                   {name}
-                </NavLink>
-              </Link>
+                </Text>
+
+                {items.map(({ name, link }, index) => (
+                  <Link href={`${BASE_PATH}${link}`} key={index} passHref>
+                    <NavLink
+                      sx={{
+                        p: 0,
+                        fontSize: 3,
+                        color: isActive(router.pathname, link)
+                          ? 'primary'
+                          : 'text',
+                      }}
+                    >
+                      {name}
+                    </NavLink>
+                  </Link>
+                ))}
+              </React.Fragment>
             ))}
           </Grid>
           <Box

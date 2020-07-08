@@ -1,0 +1,112 @@
+import DocsLayout from '../../../layouts/DocsLayout';
+import { Image } from 'theme-ui';
+
+<DocsLayout>
+
+# Order types
+
+## **Market Orders**
+
+A market order's purpose is to buy or sell a token at the current market price. It will buy or sell immediately by buying or selling the available limit orders that are currently available in the order book. In the case of a market order, there may be something called “slippage”. Slippage occurs when there aren't enough limit orders to fill the market order at a given price and results in a user paying a higher price with a buy market order or lower price with a sell market order. Thus, a user that is executing a market order is immediately giving up the [bid-ask spread](https://en.wikipedia.org/wiki/Bid%E2%80%93ask_spread). As you will see throughout this overview, you can either set a market buy or market sell order.
+
+### Classic **Example of a Market Order**
+
+Let's say there are current bid-ask prices for a token of 20 DAI and 21.50 DAI, respectively. There is currently a total of 200 tokens available at the ask. If a trader places a market order to buy 600 tokens, the first 200 will execute at 21.50.
+
+However, the next 400 will try to fill at the best asking price for sellers for the next 400 tokens. In the situation when a token is thinly traded (low volumes and often limited numbers of interested buyers and sellers), the next 400 tokens might be executed at 23.50 or higher. This brings light to why it may be best to use limit orders or average-fill-or-kill orders (which have additional safety measure against those thinly liquid order books) when making these types of token trades.
+
+### **Creating a Market Sell Order with Oasis**
+
+When a user wants to create a market sell order, they want to execute an order to sell at the bid price. With Oasis, the process of executing a market sell order begins when a user calls offer() \*\*\*\*while inputting the pos as 0 and the price parameters as non-zero.
+
+In order to not hit the **dust limit**, you will have to use a **non-zero** and **higher-than-dust-limit** value for the **pay_amt.** If you set the value of the **buy_amt** and the **pay_amt** to 0, it will result in the transaction failing. This transaction **fails** because you cannot pass **buy amounts = 0**.
+
+**Notes:**
+
+- The contract treats ETH/DAI sells as selling ETH and buys as buying ETH.
+- Users can only buy (cannot sell). For example, if a user wants to sell ETH, the contract would use the trading pair DAI/ETH which means a user would rather buy DAI instead of selling ETH.
+
+**Example:**
+
+When calling `offer(uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem, uint pos)`, you could call something like the following to create a market sell order:
+
+```bash
+400, 0xd0a1e359811322d97991e03f863a0c30c2cf029c, 5, 0xc4375b7de8af5a38a93548eb8453a498222c4ff2, 0
+```
+
+### **Creating a Market Buy order with Oasis**
+
+Much like a market sell order, a Market Buy order is a buy order to be executed immediately at the current market prices. This means that you will need to have a balance that is high enough to cover a range of possible prices. As long as there are willing sellers and buyers, market orders should be filled. Market orders are typically chosen when a user prefers to have certainty of trade execution over the price of execution, which means market orders are vulnerable to slippage. In summary, a trader will execute a market order when they are willing to buy at the current asking price. This is done by calling **offer()** with the pos parameter set to 0 and the price parameter set to `MAX_INT` (the maximum possible number in an operating system - string type).
+
+**Example:**
+
+Let's say you decide to pass in 999999 ETH as the payment amount (**`pay_amt`**) and you want to buy 1 ETH, and you have 300 DAI as your balance. If the current best selling order on the market is priced at 400 DAI and you place the given transaction described above, the offer(999999, DAI, 1, ETH, 0) will fail because you don't have 400 DAI to pay for your 1 ETH. Now, let’s say everything is the same as above except you now have the balance to pay for it (1000 DAI instead of 300), then you will be charged 400 DAI. In order to fill your order, if you specify a large **`buy_amt`**, it will take/fill as many resting orders needed to provide your requested buy amount. This will try to place the remaining balance as an order but since you don't have the entire 999999 ETH, the whole transaction will fail.
+
+## **Limit Orders**
+
+A limit order is typically the best trading method for most cases because it isn’t vulnerable to slippage. **A classic limit order** is allowed to rest on the order book and can be filled only at the specified price or better. Note that limit orders are **not** vulnerable to slippage and can in fact also have lower gas fees than market orders would. Again, you will see below that you can set a limit buy or limit sell.
+
+### **Classic Limit Order Example**
+
+Let’s say a user would like to purchase ETH at $200, which is currently trading at $210, and the limit order is set at $200. When ETH goes back to trading at $200, the order could be triggered and the user must buy it at the predetermined price.
+
+If the user decides to sell the same tokens once the price reaches $215, a new limit order will be created. So when the trade price reaches $215, the resting order can be partially filled/ or completely filled. This feature makes limit orders useful in volatile market environments, offering an advantage to investors for setting the price.
+
+This type of order protects the user from buying a token at too high a price or from selling it at too low a price. However, there is the chance that a user will fill a resting order with 10% above market price for a specific asset. In the scenarios when someone puts out a resting limit order, only the user can get the tokens back by canceling the order with an on-chain transaction. Another thing to note is that the gas fee should also be factored in before considering the price, and the possible gains, that can be made from a trade.
+
+### **Creating a Limit Buy Order with Oasis**
+
+When a user wants to create a limit buy order, they simply want to buy a token at a specific price. The limit `buy` order they place can only be filled at the specific limit price or lower. With Oasis, the limit buy order process begins when a user **calls offer(), while also indicating the position (pos) to insert an offer.** If the pos is unknown, 0 should be used for the pos. Once offer() has been called, the next step in the process is transferring the funds from the caller into a market escrow and then trying to match it with the indicated best possible price related to the offer sent.
+
+**Example:** A buy limit order with a specified price for ( pay_amt, buy_amt )
+
+\*\*\*\*offer( uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem, uint pos)
+
+```jsx
+800 **0xd0a1e359811322d97991e03f863a0c30c2cf029c** 4 **0xc4375b7de8af5a38a93548eb8453a498222c4ff2 89**
+```
+
+---
+
+**Important Notes:**
+
+- A Maker who is certain that their offer will not be matched should **always** include the optional **pos** parameter, indicating to the matching engine wherein the order book the order should be placed. If a position (pos) is not given, the matching engine will linearly scan through the order book from the top to find the right place for the offer - this will consume a lot of gas, and can potentially throw an out-of-gas error if the search of the correct position reaches the gas per block limit of the EVM (Ethereum Virtual Machine).
+- The offer function also has the option to add a **rounding** parameter: `offer( uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem, uint pos, **rounding**)`. This allows for overwriting the rounding parameter, which is set to TRUE as a default. Note that if you don't turn the rounding parameter to FALSE, the matching engine will try to fill your order as close to your indicated price as possible. For example, if you place a `buy` order at 177, the matching engine can fill half of your position at the 176.6 price. This can result in both positive or negative results for buyers and sellers. Hence, if you are looking to get your set price accepted on the exchange, then the rounding parameter should be turned off (FALSE).
+
+### **Creating a Limit Sell Order with Oasis**
+
+When a user wants to create a limit sell order, they want to sell a token at a specific price. While limit orders have no guarantee to be filled, these types of orders help ensure that a user will not pay more than a pre-determined price for a token. The process begins with a user calling offer(), while also indicating the position (pos) to insert an offer in order to give the matching engine an idea of where the order should be placed within the order book. Again, note that if the pos is unknown, 0 should be used for the pos. Once offer() is called, the next step in the process is transferring the funds from the caller into a market escrow and trying to match it with the indicated best possible price related to the offer sent. For **example**, see the above buy limit order example. This type of order has the same process except it is simply a sell instead of a buy.
+
+### **Average Fill-or-Kill Limit Orders**
+
+An average fill-or-kill order type is basically a simple market order with the addition of slippage and threshold. This means that it is not considered a limit order type as the order book defines the price by taking the amount the user-specified, checks the order on the order book and shows the average price the user will need to pay to fill all of the requested amounts. Additionally, the user can set a slippage limit which would prevent large order book takes which will result in a very bad average price for the user. The slippage limit is a way a user can protect themselves from massive volatility (having the order book changed dramatically in seconds).
+
+In summary, market orders fill at a price that is determined by the market, as opposed to limit orders, which give users more control over their trades. Using market orders can be easier when trading large amounts, but can also result in unintended and significant costs.
+
+### **Creating an "Average Price Fill-or-Kill order" Limit Order with Oasis**
+
+When creating an “Average Price fill-or-kill ” order, the trade will be executed in its entirety such that the average fill price is the limit price or better. Otherwise, it is canceled. However, the user has the power to indicate their preferred slippage limit, which refers to the difference between the expected price of a trade and the price at which the trade is executed. In short, they are specifying the maximum amount the executed price can deviate from the expected price when buying or selling in the market.
+
+For examples and user scenarios of Average Price Fill-or-Kill Orders (using sellAllAmount() and buyAllAmount()), please reference the Oasis-Direct-Proxy README [here]**(**[https://github.com/makerdao/oasis-direct-proxy#how-to-sell-tokens](https://github.com/makerdao/oasis-direct-proxy#how-to-sell-tokens))
+
+---
+
+Before proceeding to a slippage example, it is important to note that there are many ways a trade might cost a user some extra DAI, and the slippage limit is only going to affect this particular area of volatility. Also, the relevant prices (expected price, min/max price, actual price) are also a factor of this process.
+
+**Slippage** **Example:** A user places an Average Kill-or-Fill order of 25,000 DAI for an expected exchange of 110 ETH (approximated) and a slippage limit of 2%. This means the order will only be placed if the price is greater than 108 ETH (value of approximately 24,500 DAI).
+
+### **Selling or Buying in a specific order ("Cherry-picking")**
+
+When cherry-picking an order, otherwise known as filling/taking a resting order, we call the **buy() function** which includes specifying the order ID and the amount to be bought as parameters. In short, when using the buy function for cherry-picking, it works by transferring funds from the caller to the offer maker and then from the market to the caller. When calling this function, it will execute and settle a trade all within one atomic transaction (the smallest set of operations to perform the required steps). This function can be called externally by the user, but it can also be called internally by the matching engine.
+
+For historical context, this how the OasisDEX used to work before the matching engine - meaning that you could pick any order from the order book (not just the best one) and fill it.
+
+**Note:** There is no price advantage for using this type of order versus using **offer()**. **offer()** will get the best price for you. However, if you want to save gas, there could be some better offers but they may be almost considered dust offers, so then it would be convenient to use **`buy`.**
+
+## Other Information
+
+### Fees
+
+No fees are collected when using the exchange. This means that neither the smart contract nor in the UI will collect any fees whatsoever. The only costs that users have to bear are Ethereum transaction fees.
+
+</DocsLayout>

@@ -1,0 +1,17 @@
+import DocsLayout from '../../../layouts/DocsLayout';
+import { Image } from 'theme-ui';
+
+<DocsLayout>
+
+# Key terms
+
+- `Maker` - places orders with prices that are different from the current market price. Typically a Maker will try to sell for a higher price and buy for a lower price.
+  - **Ex:** If you make an order with a price that is different from the market price, you are a market maker.
+- `Taker` - A Taker will agree with the currently listed prices on the market order book and wants to fill their order immediately.
+  - **Ex:** As a taker, the lowest selling price or the highest buying price are fine with you when making a trade on the market (this how most order books are formatted + the spread between them).
+- `Makers/Takers` - work together in the following way; when a Maker doesn’t have their trades filled immediately, they get posted on the order book and are then executed when a Taker finds a Maker’s price that they deem fair.
+- `Sell limit order` = “ask”.
+- `Buy limit order` = “bid.”
+- Limit orders will “fill” as the market orders buy or sell into limit orders.
+
+</DocsLayout>
