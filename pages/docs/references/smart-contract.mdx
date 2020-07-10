@@ -65,10 +65,10 @@ import { Image } from 'theme-ui';
 
 - **offer(pay_amt, pay_gem, buy_amt, buy_gem, pos)** - Create an order. If possible, will match existing orders. **Note:** the main API of the matching engine. This method should be used 99% of the time!
 
+  - `uint pay_amt` - sell amount of `pay_gem`
   - `ERC20 pay_gem` - token that maker (ask) sells
+  - `uint buy_amt` - buy amount of `buy_gem`
   - `ERC20 buy_gem` - token that maker (ask) buys
-  - `uint pay_amt` - the maker (ask) sell amount
-  - `uint buy_amt` - the maker (ask) buy amount
   - `uint pos` - the estimated position to insert an offer
   - Returns: `uint offerId`
 
