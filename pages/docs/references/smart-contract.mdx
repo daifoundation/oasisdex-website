@@ -114,9 +114,9 @@ import { Image } from 'theme-ui';
 
 - **getOffer( uint id )** - use to retrieve offer information for specific offer id.
 
-- **uint id** - id of the offer
+   - **uint id** - id of the offer
 
-- Returns **(uint, ERC20, uint, ERC20)** - tuple with `(pay_amt pay_gem buy_amt buy_gem)`. It contains the token addresses and the respective amounts
+   - Returns **(uint, ERC20, uint, ERC20)** - tuple with `(pay_amt pay_gem buy_amt buy_gem)`. It contains the token addresses and the respective amounts
 
   
 	
@@ -143,7 +143,7 @@ import { Image } from 'theme-ui';
 
   
 
-	**_Note:_** It's important to understand that there is no price value stored in the offer's data. Price is determined by dividing token amounts. If the offer is an `ask` one then the price is calculated `buy_amt/pay_amt` and if the offer is `bid` then the price is `pay_amt/buy_amt`
+   **_Note:_** It's important to understand that there is no price value stored in the offer's data. Price is determined by dividing token amounts. If the offer is an `ask` one then the price is calculated `buy_amt/pay_amt` and if the offer is `bid` then the price is `pay_amt/buy_amt`
 
 - **buy(id, amount)** - the buy function is used to fill a specific order (“cherrypicks”). By calling this function, it will execute and settle a trade all within one atomic transaction. **Note:** Can be called externally by the user, and is also called internally by the matching engine (see **offer()** method for more details).
 
