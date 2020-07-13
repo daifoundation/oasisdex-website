@@ -48,7 +48,6 @@ import { Image } from 'theme-ui';
 	export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
 	export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
 
-
 	$ BEST_OFFER_ID=$(seth --to-dec $(seth call $OTC_MARKET 'getBestOffer(address,address)' $WETH $DAI))
 
 	$ seth --to-dec $(seth call $OTC_MARKET 'getWorseOffer(uint)' $BEST_OFFER_ID)
