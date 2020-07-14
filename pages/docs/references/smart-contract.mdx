@@ -17,6 +17,11 @@ import { Image } from 'theme-ui';
 
 ## **Matching Market**
 
+[The Matching Market](https://github.com/daifoundation/maker-otc/blob/master/src/matching_market.sol)
+is an extention of the [Expiring Market](https://github.com/daifoundation/maker-otc/blob/master/src/expiring_market.sol)
+which is an extention of the [Simple Market](https://github.com/daifoundation/maker-otc/blob/master/src/simple_market.sol).
+It leverages the power of the matching engine and adds some new events.
+
 ### **Orderbook Navigation**
 
 Those methods give the ability to navigate throughout the order book.
@@ -259,6 +264,68 @@ console.log(ethers.utils.formatEther(buy_amt)) // 17.00
 const price = buy_amt.div(pay_amt)
 console.log(price.toString())
 ```
+
+### **Placing orders ( Market Makers )**
+
+// before placing an offer the user should set allowance
+
+#### **Offer**
+
+There are couple of implementation of the _offer_ method. Each implementation is use for different cases.
+
+First of the implementations can be found in the [simple market](https://github.com/daifoundation/maker-otc/blob/master/src/simple_market.sol#L240) smart contract.
+
+```
+function offer(uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem) public can_offer synchronized returns (uint id)
+```
+
+Calling this method will create a new offer by taking the funds from the caller and putting them into the market escrow
+
+- **pay_amt**: Amount that will be sold. Number in _wei_ units.
+- **pay_gem**: Address of an ERC20 token contract. Token that maker sells
+- **buy_amt**: Amount to sell. Number in _wei_ units.
+- **buy_gem**: Address of an ERC20 token contract. Token that maker buys
+- **RETURN**: Id of the newly created offer.
+
+This function **SHOULD NOT** be called. It was used before creating the matching engine and it doesn't take advantage of it.
+Placing an order using this function may cause you offer not being listed on the orderbook.
+
+Second of the implementations can be found in the [matching_market](https://github.com/daifoundation/maker-otc/blob/master/src/matching_market.sol#L129) smart contract.
+This method leverages the power of the matching engine. It also takes into account some concerns. Since price is not stored anywhere but rather calculated
+there is some division happening which might cause rounding issues. Order book might end up having orders with dust amounts.
+Calling this method will create a new offer by taking the funds from a caller and putting them into the market escrow
+only if the amount that will be sold is higher than the dust limit set for the given token that will be sold.
+
+```
+function offer( uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem, uint pos, bool rounding ) public can_offer returns (uint)
+```
+
+- **pay_amt**: Amount that will be sold. Number in _wei_ units.
+- **pay_gem**: Address of an ERC20 token contract. Token that maker sells
+- **buy_amt**: Amount to sell. Number in _wei_ units.
+- **buy_gem**: Address of an ERC20 token contract. Token that maker buys
+- **pos**: Position where to insert the new offer. 0 should be used if unknown.
+- **rounding**: Boolean value whether "close enough" orders should be matched.
+- **RETURN**: Id of the newly created offer.
+
+This function **COULD** be called but it's **NOT RECOMMENDED**.
+
+Third of the implementations can be found in the [matching_market](https://github.com/daifoundation/maker-otc/blob/master/src/matching_market.sol#L115) smart contract.
+This method leverages the power of the matching engine and also takes into account some concerns. This methods is a wrapper of the second implementation ( mentioned above ).
+The only difference is that the _rounding_ parameter is not passed explicitly.
+
+```
+function offer( uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem, uint pos) public can_offer returns (uint)
+```
+
+- **pay_amt**: Amount that will be sold. Number in _wei_ units.
+- **pay_gem**: Address of an ERC20 token contract. Token that maker sells
+- **buy_amt**: Amount to sell. Number in _wei_ units.
+- **buy_gem**: Address of an ERC20 token contract. Token that maker buys
+- **pos**: Position where to insert the new offer. 0 should be used if unknown.
+- **RETURN**: Id of the newly created offer.
+
+This is the **RECOMMENDED** way of creating new offers.
 
 - **buy(id, amount)** - the buy function is used to fill a specific order (“cherrypicks”). By calling this function, it will execute and settle a trade all within one atomic transaction. **Note:** Can be called externally by the user, and is also called internally by the matching engine (see **offer()** method for more details).
 
