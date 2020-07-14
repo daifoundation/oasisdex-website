@@ -1,6 +1,6 @@
 import oasisTheme from '@makerdao/dai-ui-theme-oasis';
 import { icons } from '@makerdao/dai-ui-icons';
-import syntaxHighlightingPreset from '@theme-ui/prism/presets/night-owl';
+import syntaxHighlightingPreset from '@theme-ui/prism/presets/github';
 
 const theme = {
   ...oasisTheme,
