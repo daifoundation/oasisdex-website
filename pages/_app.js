@@ -4,6 +4,7 @@ import ThemeUIPrism from '@theme-ui/prism';
 import PrismCore from 'prismjs/components/prism-core';
 import 'prismjs/components/prism-clike';
 import 'prismjs/components/prism-solidity';
+import 'prismjs/components/prism-javascript';
 import HeadTags from '../components/HeadTags';
 
 const components = {
