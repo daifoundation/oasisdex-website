@@ -142,7 +142,7 @@ const betterOfferId = await otcContract.getBetterOffer(currentOfferId)
 console.log(betterOfferId.toString())
 ```
 
-#### Get Offer Count
+#### **Get Offer Count**
 
 Used to get the amount of offers for a given side of the order book.
 Give the following market _WETH/DAI_ if _WETH_'s address is passed as a _pay_gem_ then the size of the _asks_ is returned. If _DAI_'s address is passed as a _pay_gem_ then the size of the _bids_ is returned.
@@ -191,7 +191,7 @@ const bidsSize = await otcContract.getOfferCount(DAI, WETH)
 console.log(`Asks Size: ${asksSize.toString()}`, `Bid Size: ${bidsSize.toString()}`) // Ask Size: 14, Bids Size: 1
 ```
 
-#### Get Offer
+#### **Get Offer**
 
 Used to retrieve offer details for a specific offer id.
 It's important to understand that there is no price value stored in the offer's data.
