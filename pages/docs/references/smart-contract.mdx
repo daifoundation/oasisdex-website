@@ -41,8 +41,7 @@ function getBestOffer(ERC20 pay_gem, ERC20 buy_gem) public view returns(uint)
 - **buy_gem**: An address of an ERC20 token contract 
 - **RETURN**: Id(number) of the best offer for **pay_gem:buy_gem** pair.
 
-**Seth:**
-  
+**Seth:**  
 ```
 export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
 export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
@@ -53,7 +52,6 @@ $ seth --to-dec $(seth call $OTC_MARKET 'getBestOffer(address,address)' $WETH $D
 ```
 
 **Ethers JS (v5):**
-
 ```
 const OTC_ABI = //otc contract abi defined
 
@@ -80,7 +78,6 @@ function getWorseOffer(uint id) public view returns(uint)
 - **RETURN**: Id(number) of a worse offer
 
 **Seth:**
-
 ```
 export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
 export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
@@ -92,7 +89,7 @@ $ seth --to-dec $(seth call $OTC_MARKET 'getWorseOffer(uint)' $BEST_OFFER_ID)
 13
 ```
 
-**Ethers JS (v5)**
+**Ethers JS (v5):**
 ```
 const OTC_ABI = //otc contract abi defined
 
@@ -120,7 +117,6 @@ function getBetterOffer(uint id) public view returns(uint)
 - **RETURN**: Id(number) of a better offer
 
 **Seth:**
-
 ```
 export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
 export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
@@ -131,7 +127,7 @@ $ seth --to-dec $(seth call $OTC_MARKET 'getBetterOffer(uint)' 13)
 
 ``` 
 
-**Javascript:**
+**Ethers JS (v5):**
 ```
 const OTC_ABI = //otc contract abi defined
 
@@ -160,7 +156,6 @@ function getOfferCount(ERC20 pay_gem, ERC20 buy_gem) public view returns(uint)
 - **RETURN**: Size(number) either of all `asks` or all `bids`.
 
 **Seth:**
-
 ```
 const OTC_ABI = //otc contract abi defined
 
@@ -183,7 +178,7 @@ $ seth --to-dec $(seth call $OTC_MARKET 'getOfferCount(address,address)' $DAI $W
 1
 ```
 
-***Ethers JS (v5)**
+**Ethers JS (v5):**
 ```
 const OTC_ABI = //otc contract abi defined
 
@@ -238,7 +233,7 @@ $ seth --from-wei $(seth --to-dec ebec21ee1da40000)
 17.000000000000000000
 ```
 
-**Ethers JS (v5)**
+**Ethers JS (v5):**
 ```
 const OTC_ABI = //otc contract abi defined
 
