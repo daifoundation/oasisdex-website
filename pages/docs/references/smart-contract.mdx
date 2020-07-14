@@ -8,7 +8,7 @@ import { Image } from 'theme-ui';
 
 ## Overview
 
-1. **Matching Engine:** This API is used by most users, as it is the API for accessing the sorted order book and matching engine. The order book is implemented as a double-linked sorted list and at any one time the list should return sorted.
+1. **Matching Engine:** This API is used by most users, as it is the API for accessing the sorted order book and matching engine.
 
 2. **Average Price Fill-Or-Kill Orders:** This API is dedicated to **Takers** and works by executing a special type of order called "Average Price fill-or-kill order". This order type is using the order book to calculate an average price with a threshold based on the amount the user wants to sell or buy. This order will never stay on the order book and if it cannot be matched (due to exceeding the gas block limit or by reaching the threshold), the transaction will revert. For example, the discontinued frontend [oasis.direct](https://oasis.direct) used this, and it is now what **[Oasis Instant](http://oasis.app/instant)** uses.
 
@@ -16,107 +16,248 @@ import { Image } from 'theme-ui';
 
 # Key Functionalities within each group
 
-## 1. Matching Market:
+## **Matching Market**
 
-- **getBestOffer( ERC20 pay_gem, ERC20 buy_gem )** - gets an offer from the top of the order book. Use with combination with `getWorseOffer()/getBetterOffer()`
-	- **ERC20 pay_gem** - address of a ERC20 token contract
-	- **ERC20 buy_gem** - address of a ERC20 token contract
-	- Returns **(uint offerId)** - the id of the best offer for **pay_gem:buy_gem** pair.
+### **Orderbook Navigation**
 
-	**_Example:_**
+Those methods give the ability to navigate throughout the order book.
+The order book is implemented as a double-linked sorted list and at any time the list should be sorted.
+It has two sides. One of  the sides contains all buy offers which are called `bids` and the other side contains 
+all of the sell orders which are called `asks`
 
-	```
-	export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
-	export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
-	export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c  
+#### **Get Best Offer** 
 
-	$ seth --to-dec $(seth call $OTC_MARKET 'getBestOffer(address,address)' $WETH $DAI)
-	118172
-	```
+Used to get the best offer for a given token pair. 
 
- 	**_Note:_** Given the following market `WETH/DAI` if `WETH`'s address is passed as a `pay_gem` then the id of the best `ask` will be returned. If `DAI`'s address is passed as a `pay_gem` then the id of the best `bid` will be returned
+Given the following market _WETH/DAI_ if _WETH_'s address is passed as a _pay_gem_ then the id of the best _ask_ will be returned
+If _DAI_'s address is passed as a _pay_gem_ then the id of the best `bid` will be returned.
+This method is used in combination with _getWorseOffer / getBetterOffer_.
+
+```
+function getBestOffer(ERC20 pay_gem, ERC20 buy_gem) public view returns(uint)
+```
+
+- **pay_gem**: An address of an ERC20 token contract
+- **buy_gem**: An address of an ERC20 token contract 
+- **RETURN**: Id(number) of the best offer for **pay_gem:buy_gem** pair.
+
+**Seth:**
+  
+```
+export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
+export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
+export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c  
+
+$ seth --to-dec $(seth call $OTC_MARKET 'getBestOffer(address,address)' $WETH $DAI)
+118172
+```
+
+**Ethers JS (v5):**
+
+```
+const OTC_ABI = //otc contract abi defined
+
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
+const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+
+const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, provider);
+const bestOfferId = await otcContract.getBestOffer(WETH, DAI)
+
+console.log(bestOfferId.toString()) // 118172
+```
+
+#### **Get Worse Offer**
+
+Used to get the next worse offer in the sorted linked list. If the offer which _id_ is used in the method call ( current offer ) is an `ask` one then a worse offer will have higher price.
+If the current offer is a `bid` one then a worse offer will have lower price
+
+```
+function getWorseOffer(uint id) public view returns(uint)
+```
+
+- **id**: Id of an offer compareted to which a worse offer will be returned
+- **RETURN**: Id(number) of a worse offer
+
+**Seth:**
+
+```
+export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
+export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
+export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
+
+$ BEST_OFFER_ID=$(seth --to-dec $(seth call $OTC_MARKET 'getBestOffer(address,address)' $WETH $DAI))
+
+$ seth --to-dec $(seth call $OTC_MARKET 'getWorseOffer(uint)' $BEST_OFFER_ID)
+13
+```
+
+**Ethers JS (v5)**
+```
+const OTC_ABI = //otc contract abi defined
+
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
+const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+
+const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, provider);
+const bestOfferId = await otcContract.getBestOffer(WETH, DAI)
+const worseOfferId = await otcContract.getWorseOffer(bestOfferId)
+console.log(worseOfferId.toString()) // 13
+```
 
 
-- **getWorseOffer( unint id )**  - used to navigate throughout the orderbook.
-	- **uint id** - Id of the starting offer
-	- Returns **( uint offerId)** - Id of a worse offer. If current offer is a `ask` one then a worse offer will have higher price and if current offer is a `bid` one then a worse offer will have lower price
+#### **Get Better Offer**
 
-	**_Example:_**
+Used to get the next better offer in the sorted linked list. If the offer which _id_ is used in the method call ( current offer ) is an `ask` one then a better offer will have lower price.
+If the current offer is a `bid` one then a better offer will have higher price
 
-	```
-	export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
-	export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
-	export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
+```
+function getBetterOffer(uint id) public view returns(uint)
+```
 
-	$ BEST_OFFER_ID=$(seth --to-dec $(seth call $OTC_MARKET 'getBestOffer(address,address)' $WETH $DAI))
+- **id**: Id of an offer compareted to which a worse offer will be returned
+- **RETURN**: Id(number) of a better offer
 
-	$ seth --to-dec $(seth call $OTC_MARKET 'getWorseOffer(uint)' $BEST_OFFER_ID)
-	13
-	```
+**Seth:**
 
-- **getBetterOffer( uint id )**
-	- **uint id** - Id of the starting offer
-	- Returns **( uint offerId )** - Id of a better offer. If current offer is a `ask` one, a better offer will have lower price and if current offer is a `bid` one a better offer will have higher price
+```
+export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
+export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
+export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
 
-	**_Example:_**
+$ seth --to-dec $(seth call $OTC_MARKET 'getBetterOffer(uint)' 13)
+118172
 
-	```
-	export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
-	export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
-	export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
+``` 
 
-	$ seth --to-dec $(seth call $OTC_MARKET 'getBetterOffer(uint)' 13)
-	118172
+**Javascript:**
+```
+const OTC_ABI = //otc contract abi defined
 
-	``` 
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
+const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
 
-- **getOfferCount( ERC20 pay_gem, ERC20 buy_gem )** - used to get the size of the orderbook
-	- **ERC20 pay_gem** - address of a ERC20 token contract
-	- **ERC20 buy_gem** - address of a ERC20 token contract
-	- Returns **( uint size )** - the size either of all `asks` or all `bids`.
-	
-	**_Example:_** 
+const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, provider);
 
-	```
-	$ seth --to-dec $(seth call $OTC_MARKET 'getOfferCount(address,address)' $WETH $DAI)
-	14
+const currentOfferId = 13
+const betterOfferId = await otcContract.getBetterOffer(currentOfferId)
+console.log(betterOfferId.toString())
+```
 
-	$ seth --to-dec $(seth call $OTC_MARKET 'getOfferCount(address,address)' $DAI $WETH)
-	1
-	```
+#### Get Offer Count
 
-	**_Note:_** Give the following market `WETH/DAI` if `WETH`'s address is passed as a `pay_gem` then the size of the `asks` is returned. If `DAI`'s address is passed as a `pay_gem` then the size of the `bids` is returned
+Used to get the amount of offers for a given side of the order book.
+Give the following market _WETH/DAI_ if _WETH_'s address is passed as a _pay_gem_ then the size of the _asks_ is returned. If _DAI_'s address is passed as a _pay_gem_ then the size of the _bids_ is returned.
+
+```
+function getOfferCount(ERC20 pay_gem, ERC20 buy_gem) public view returns(uint)
+```
+
+- **pay_gem**: An address of an ERC20 token contract
+- **buy_gem**: An address of an ERC20 token contract 
+- **RETURN**: Size(number) either of all `asks` or all `bids`.
+
+**Seth:**
+
+```
+const OTC_ABI = //otc contract abi defined
+
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
+const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+
+const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, provider);
+
+export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
+export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
+export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
+
+// Size of asks
+$ seth --to-dec $(seth call $OTC_MARKET 'getOfferCount(address,address)' $WETH $DAI)
+14 
+
+// size of bids
+$ seth --to-dec $(seth call $OTC_MARKET 'getOfferCount(address,address)' $DAI $WETH)
+1
+```
+
+***Ethers JS (v5)**
+```
+const OTC_ABI = //otc contract abi defined
+
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
+const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+
+const asksSize = await otcContract.getOfferCount(WETH, DAI)
+const bidsSize = await otcContract.getOfferCount(DAI, WETH)
+console.log(`Asks Size: ${asksSize.toString()}`, `Bid Size: ${bidsSize.toString()}`) // Ask Size: 14, Bids Size: 1
+```
+
+#### Get Offer
+
+Used to retrieve offer details for a specific offer id.
+It's important to understand that there is no price value stored in the offer's data.
+Price is determined by dividing token amounts.
+If the offer is an _ask_ one then the price is calculated _buy_amt/pay_amt_ and if the offer is _bid_ then the price is _pay_amt/buy_amt_
 
 
-- **getOffer( uint id )** - use to retrieve offer information for specific offer id.
+```
+function getOffer(uint id) public view returns (uint, ERC20, uint, ERC20)
+```
 
-   - **uint id** - id of the offer
+- **id**: An id of the offer
+- **RETURN**: Tuple of four values _(pay_amt pay_gem buy_amt buy_gem)_.
 
-   - Returns **(uint, ERC20, uint, ERC20)** - tuple with `(pay_amt pay_gem buy_amt buy_gem)`. It contains the token addresses and the respective amounts
-	
-	**_Example:_**
+   _pay_amt_ - amount that sells
 
-	```
-	export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
-	export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
-	export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
+   _pay_gem_ - token that sells
 
-	$ seth call $OTC_MARKET 'getOffer(uint)(uint256,address,uint256,address)' 118172
-	16345785d8a0000
-	d0a1e359811322d97991e03f863a0c30c2cf029c
-	ebec21ee1da40000
-	4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
+   _buy_amt_ - amount that buys
+   
+   _buy_gem_ - token that buys
 
-	$ seth --from-wei $(seth --to-dec 16345785d8a0000)
-	0.100000000000000000
+**Seth:**
+```
+export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
+export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
+export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
 
-	$ seth --from-wei $(seth --to-dec ebec21ee1da40000)
-	17.000000000000000000
+$ seth call $OTC_MARKET 'getOffer(uint)(uint256,address,uint256,address)' 118172
+16345785d8a0000
+d0a1e359811322d97991e03f863a0c30c2cf029c // 0xd0a1e359811322d97991e03f863a0c30c2cf029c - WETH address
+ebec21ee1da40000
+4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa // 0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa - DAI address
 
-	```
+$ seth --from-wei $(seth --to-dec 16345785d8a0000)
+0.100000000000000000
 
-   **_Note:_** It's important to understand that there is no price value stored in the offer's data. Price is determined by dividing token amounts. If the offer is an `ask` one then the price is calculated `buy_amt/pay_amt` and if the offer is `bid` then the price is `pay_amt/buy_amt`
+$ seth --from-wei $(seth --to-dec ebec21ee1da40000)
+17.000000000000000000
+```
 
+**Ethers JS (v5)**
+```
+const OTC_ABI = //otc contract abi defined
+
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
+const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+
+const bestOfferId = await otcContract.getBestOffer(WETH, DAI)
+const [pay_amt, pay_gem, buy_amt, buy_gem ] = await otcContract.getOffer(bestOfferId)
+
+console.log(pay_gem) //  0xd0a1e359811322d97991e03f863a0c30c2cf029c - WETH address
+console.log(ethers.utils.formatEther(pay_amt)) // 0.1
+console.log(buy_gem) // 0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa - DAI address
+console.log(ethers.utils.formatEther(buy_amt)) // 17.00
+
+const price = buy_amt.div(pay_amt)
+console.log(price.toString())
+```
+   
 - **buy(id, amount)** - the buy function is used to fill a specific order (“cherrypicks”). By calling this function, it will execute and settle a trade all within one atomic transaction. **Note:** Can be called externally by the user, and is also called internally by the matching engine (see **offer()** method for more details).
    - `uint id` - offer id
    - `uint amount` - amount
