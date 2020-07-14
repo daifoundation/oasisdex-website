@@ -64,6 +64,7 @@ const OTC_ABI = //otc contract abi defined
 const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
 const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
 const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+const provider = new ethers.providers.Web3Provider(window.ethereum)
 
 const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, provider);
 const bestOfferId = await otcContract.getBestOffer(WETH, DAI)
@@ -104,6 +105,7 @@ const OTC_ABI = //otc contract abi defined
 const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
 const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
 const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+const provider = new ethers.providers.Web3Provider(window.ethereum)
 
 const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, provider);
 const bestOfferId = await otcContract.getBestOffer(WETH, DAI)
@@ -141,8 +143,7 @@ $ seth --to-dec $(seth call $OTC_MARKET 'getBetterOffer(uint)' 13)
 const OTC_ABI = //otc contract abi defined
 
 const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
-const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
-const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+const provider = new ethers.providers.Web3Provider(window.ethereum)
 
 const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, provider);
 
@@ -167,14 +168,6 @@ function getOfferCount(ERC20 pay_gem, ERC20 buy_gem) public view returns(uint)
 **Seth:**
 
 ```bash
-const OTC_ABI = //otc contract abi defined
-
-const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
-const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
-const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
-
-const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, provider);
-
 export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
 export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
 export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
@@ -196,6 +189,7 @@ const OTC_ABI = //otc contract abi defined
 const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
 const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
 const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+const provider = new ethers.providers.Web3Provider(window.ethereum)
 
 const asksSize = await otcContract.getOfferCount(WETH, DAI)
 const bidsSize = await otcContract.getOfferCount(DAI, WETH)
@@ -252,6 +246,7 @@ const OTC_ABI = //otc contract abi defined
 const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
 const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
 const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+const provider = new ethers.providers.Web3Provider(window.ethereum)
 
 const bestOfferId = await otcContract.getBestOffer(WETH, DAI)
 const [pay_amt, pay_gem, buy_amt, buy_gem ] = await otcContract.getOffer(bestOfferId)
