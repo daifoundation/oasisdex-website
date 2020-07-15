@@ -364,68 +364,21 @@ This function **SHOULD NOT** be called. It was used before creating the matching
 Placing an order using this function may cause you offer not being listed on the orderbook.
 
 
-### **Filling/taking orders ( Market Takers )**
+### **Taking/Filling orders ( Market Takers )**
 
-One of the ways that we already have discussed in the `Placing Orders` section is to make a new offer that will fill completely an existing order.
-That way the caller is _taking_ an order.
-There are other methods for a caller to take orders.
+**Offer** method described in the _Placing orders_ section above could be used to take/fill orders.
+By placing a new order which fills completely or partially an existing one, the caller is partially or completely a _market taker_.
 
-#### **Buy**
+**Buy** method that will be describe in this section could be used for taking orders but it **SHOULD** be used with caution. 
+This method could be used for gas optimization if the caller wants to fill partially or completely single order but it **DOES NOT** guarantee the best price.
+It **SHOULD BE* used with **CAUTIOUS** only by people who knows what they are doing.
 
-The buy function is used to fill a specific order (“cherrypicks”). By calling this function, it will execute and settle a trade all within one atomic transaction.
-It will transfers funds from caller to offer maker, and from market to caller
-It is **NOT RECOMMENDED** to call this method directly. May end up filling an order that is not the optimal one.
-
-```solidity
-function buy(uint id, uint amount) public can_buy(id) synchronized returns (bool)
-```
-  - **id**: An id of the offer that the send is willing to fill
-  - **amount**: Amount that the user is willing to fill. Could be partial or full amount.
-  - **RETURN**:  Boolean result whether the transaction was successful
-
-**Seth:**
-```bash
-export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
-
-# Orderbook (Bids)
-# 118282 0.2 (WETH) 3 DAI
-$ seth send $OTC_MARKET 'buy(uint,uint)' 118282 $(seth --to-uint256 $(seth --to-wei 3 ether))
-```
-
-**Ethers JS (v5):**
-```javascript
-const OTC_ABI = //otc contract abi defined
-
-const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
-const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
-const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
-
-const provider = new ethers.providers.Web3Provider(window.ethereum)
-const signer = provider.getSigner()
-
-const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer); 
-
-// Orderbook (Bids)
-// 118257 0.2 (WETH) 2 DAI
-await otcContract.functions.buy(118257, ethers.utils.parseUnits("2", 18))
-```
-
-#### **Take**
-
-This is the _byte32_ version of the **Buy** function.
-```solidity
-function take(bytes32 id, uint128 maxTakeAmount) public
-```
-
-- **id**: An id of the offer that the send is willing to fill
-- **amount**: Amount that the user is willing to fill. Could be partial or full amount.
-- **RETURN**: Nothing. Transaction either succeeds or fails.
-
-### **Average Price fill-or-kill orders**
-This API methods described below are dedicated to Takers and works by executing a special type of order called **"Average Price fill-or-kill order"**.
+**Sell All Amount** and **Buy All Amount** described below are dedicated to Takers and works by executing a special type of order called **"Average Price fill-or-kill order"**.
 This order type is using the order book to calculate an average price with a threshold based on the amount the user wants to sell or buy.
 This order will never stay on the order book and if it cannot be matched (due to exceeding the gas block limit or by reaching the threshold),
-the transaction will revert. For example, the discontinued frontend oasis.direct used this, and it is now what Oasis Instant uses.
+the transaction will revert. Those methods are the **RECOMMENDED** way to take orders.
+
+**Get Pay Amount** and ** Get Buy Amount** are helper methods that are used in combination with **Buy All Amount* and **Sell All Amount** ones.
 
 #### **Sell All Amount**
 
@@ -684,6 +637,64 @@ const buy_gem = WETH
 const fill_amt = await otcContract.functions.getPayAmount(pay_gem,buy_gem, buy_amt)
 console.log(ethers.utils.formatEther(fill_amt.toString())) // 24.8
 ```
+
+#### **Buy**
+
+The buy function is used to fill a specific order (“cherrypicks”). By calling this function, it will execute and settle a trade all within one atomic transaction.
+It will transfers funds from caller to offer maker, and from market to caller
+It is **NOT RECOMMENDED** to call this method directly. May end up filling an order that is not the optimal one.
+
+```solidity
+function buy(uint id, uint amount) public can_buy(id) synchronized returns (bool)
+```
+  - **id**: An id of the offer that the send is willing to fill
+  - **amount**: Amount that the user is willing to fill. Could be partial or full amount.
+  - **RETURN**:  Boolean result whether the transaction was successful
+
+**Seth:**
+```bash
+export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
+
+# Orderbook (Bids)
+# 118282 0.2 (WETH) 3 DAI
+$ seth send $OTC_MARKET 'buy(uint,uint)' 118282 $(seth --to-uint256 $(seth --to-wei 3 ether))
+```
+
+**Ethers JS (v5):**
+```javascript
+const OTC_ABI = //otc contract abi defined
+
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
+const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+
+const provider = new ethers.providers.Web3Provider(window.ethereum)
+const signer = provider.getSigner()
+
+const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer); 
+
+// Orderbook (Bids)
+// 118257 0.2 (WETH) 2 DAI
+await otcContract.functions.buy(118257, ethers.utils.parseUnits("2", 18))
+```
+
+#### **Take**
+
+This is the _byte32_ version of the **Buy** function.
+```solidity
+function take(bytes32 id, uint128 maxTakeAmount) public
+```
+
+- **id**: An id of the offer that the send is willing to fill
+- **amount**: Amount that the user is willing to fill. Could be partial or full amount.
+- **RETURN**: Nothing. Transaction either succeeds or fails.
+
+### **Average Price fill-or-kill orders**
+This API methods described below are dedicated to Takers and works by executing a special type of order called **"Average Price fill-or-kill order"**.
+This order type is using the order book to calculate an average price with a threshold based on the amount the user wants to sell or buy.
+This order will never stay on the order book and if it cannot be matched (due to exceeding the gas block limit or by reaching the threshold),
+the transaction will revert. For example, the discontinued frontend oasis.direct used this, and it is now what Oasis Instant uses.
+
 
 ### **Offer management**
 
