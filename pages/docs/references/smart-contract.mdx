@@ -689,13 +689,6 @@ function take(bytes32 id, uint128 maxTakeAmount) public
 - **amount**: Amount that the user is willing to fill. Could be partial or full amount.
 - **RETURN**: Nothing. Transaction either succeeds or fails.
 
-### **Average Price fill-or-kill orders**
-This API methods described below are dedicated to Takers and works by executing a special type of order called **"Average Price fill-or-kill order"**.
-This order type is using the order book to calculate an average price with a threshold based on the amount the user wants to sell or buy.
-This order will never stay on the order book and if it cannot be matched (due to exceeding the gas block limit or by reaching the threshold),
-the transaction will revert. For example, the discontinued frontend oasis.direct used this, and it is now what Oasis Instant uses.
-
-
 ### **Offer management**
 
 Methods that operate over ones offers.
