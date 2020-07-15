@@ -299,7 +299,7 @@ This provides a reference point for the contract to know where to begin looking.
 After this, the contract will make adjustments it if was an incorrect pos or if it was changed during the time between the transaction being sent and mined.
 The closer you are from the real position, the less amount of gas the contract will spend.
 
-**Ethers JS(v5):**
+**Ethers JS (v5):**
 ```javascript
 const OTC_ABI = //otc contract abi defined
 
@@ -366,27 +366,114 @@ This function **SHOULD NOT** be called. It was used before creating the matching
 Placing an order using this function may cause you offer not being listed on the orderbook.
 
 
-- **buy(id, amount)** - the buy function is used to fill a specific order (“cherrypicks”). By calling this function, it will execute and settle a trade all within one atomic transaction. **Note:** Can be called externally by the user, and is also called internally by the matching engine (see **offer()** method for more details).
+### **Filling/taking orders ( Market Takers )**
 
-  - `uint id` - offer id
-  - `uint amount` - amount
-  - Returns: `bool success`
+One of the ways that we already have discussed in the `Placing Orders` section is to make a new offer that will fill completely an existing order.
+That way the sender is _taking_ an order.
+There are other methods for a sender to take orders.
 
-- **take(id, amount)** - provides the byte32 version of **buy().**
+#### **Buy**
 
-  - `bytes32 id` - offer id
-  - `uint amount` - amount
-  - Returns: `bool success`
+The buy function is used to fill a specific order (“cherrypicks”). By calling this function, it will execute and settle a trade all within one atomic transaction.
+It will transfers funds from caller to offer maker, and from market to caller
+It is **NOT RECOMMENDED** to call this method directly. May end up filling an order that is not the optimal one.
 
-- **cancel(id)** - cancels an order with a given order ID.
+```solidity
+function buy(uint id, uint amount) public can_buy(id) synchronized returns (bool)
+```
+  - **id**: An id of the offer that the send is willing to fill
+  - **amount**: Amount that the user is willing to fill. Could be partial or full amount.
+  - **RETURN**:  Boolean result whether the transaction was successful
 
-  - `uint id` - offer id
-  - Returns: `bool success`
+**Seth:**
+```bash
+export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
 
-- **kill(id)** - provides the byte32 version of cancel().
+# Orderbook (Bids)
+# 118282 0.2 (WETH) 3 DAI
+$ seth send $OTC_MARKET 'buy(uint,uint)' 118282 $(seth --to-uint256 $(seth --to-wei 3 ether))
+```
 
-  - `uint id` - offer id
-  - Returns: `bool success`
+**Ethers JS (v5):**
+```javascript
+const OTC_ABI = //otc contract abi defined
+
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
+const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+
+const provider = new ethers.providers.Web3Provider(window.ethereum)
+const signer = provider.getSigner()
+
+const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer); 
+
+// Orderbook (Bids)
+// 118257 0.2 (WETH) 2 DAI
+await otcContract.functions.buy(118257, ethers.utils.parseUnits("2", 18))
+```
+
+#### Take
+
+This is the _byte32_ version of the **Buy** function.
+```solidity
+function take(bytes32 id, uint128 maxTakeAmount) public
+```
+
+- **id**: An id of the offer that the send is willing to fill
+- **amount**: Amount that the user is willing to fill. Could be partial or full amount.
+- **RETURN**: Nothing. Transaction either succeeds or fails.
+
+
+
+### **Offer management**
+
+Methods that operate over ones offers.
+
+#### **Cancel **
+
+Used to cancel an offer with specifc if placed by the sender.
+
+```solidity
+function cancel(uint id) public can_cancel(id) synchronized returns (bool success)
+```
+
+- **id**: An id of the offer that needs to be cancelled
+- **RETURN**: Boolean result whether the transaction was successful
+
+**Seth:**
+```bash
+export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
+
+$ seth send $OTC_MARKET 'cancel(uint)' 118283
+```
+
+**Ethers JS (v5):**
+```javascript
+const OTC_ABI = //otc contract abi defined
+
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
+const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+
+const provider = new ethers.providers.Web3Provider(window.ethereum)
+const signer = provider.getSigner()
+
+const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer);
+
+otcContract.functions.cancel(118281)
+```
+
+#### **Kill**
+
+This is the _byte32_ version of the **Cancel** function.
+
+```solidity
+function kill(bytes32 id) public
+```
+
+- **id**: An id of the offer that needs to be cancelled
+- **RETURN**: Nothing. Either the transaction is successful or fails
+
 
 ## 2. Average Price Fill-Or-Kill Orders:
 
@@ -397,13 +484,5 @@ Placing an order using this function may cause you offer not being listed on the
 - **getBuyAmount(buy_gem, pay_gem, pay_amt) -** This function is used to get the `buy` amount and will return how much of the collateral token can be bought by paying the specified`pay_amt`. Its purpose is to retrieve the best offer for the token pair.
 
 - **getPayAmount(pay_gem, buy_gem, buy_amt) -** This function is used to get the `pay` amount and will return how much of the collateral token is needed in order to buy the specified `buy_amt`. This also tries to retrieve the best offer for the token pair.
-
-## 3. Administrative Methods
-
-- **stop()** - stops the market.
-
-- **setMatchingEnabled()** - stops matching engine.
-
-- **setMinSell()/getMinSell()** - sets/gets the dust limit for a token.
 
 </DocsLayout>
