@@ -291,10 +291,13 @@ function offer( uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem, uint p
 
 **Note:** It's important to understand how **_pos_** parameter works.
 **_pos_** is the **OFFER ID** of the first offer that is higher in price than the new offer that the sender is making.
-When making a new offer if the sender is **NOT CERTAIN** that the offer will be completely matched or making a new offer which is **WORSE** than the _best_ one,
-the pos should be calculate and passed with the method call.
-If the sender is **NOT CERTAIN** where the offer should be placed, _0_ should be sent as value for _pos_.
-That will trigger iteration over the side of the orderbook which might result in higher gas cost or a failed transaction ( out of gas )
+If you pass pos=0 this means that the contract will have to find where to insert the order. 
+In the case of a very large order book, it will take a significantly larger amount of gas to insert the new order (may even result in an out of gas error and cause the TX to fail)
+compared to inserting an order with known a (calculated in advance ) pos. Inserting a known pos is done manually.
+You must look at the current offers list and see which entry point position corresponds for your new order.
+This provides a reference point for the contract to know where to begin looking.
+After this, the contract will make adjustments it if was an incorrect pos or if it was changed during the time between the transaction being sent and mined.
+The closer you are from the real position, the less amount of gas the contract will spend.
 
 **Ethers JS(v5):**
 ```javascript
@@ -384,8 +387,6 @@ Placing an order using this function may cause you offer not being listed on the
 
   - `uint id` - offer id
   - Returns: `bool success`
-
-**Note: regarding the Position (pos) parameter:** If you pass `pos=0` this means that the contract will have to find where to insert the order. In the case of a very large order book, it will take a significantly larger amount of gas to insert the new order (may even result in an out of gas error and cause the TX to fail) compared to inserting an order with known a (calculated in advance ) pos. Inserting a known pos is done manually. You must look at the current offers list and see which entry point position corresponds for your new order. This provides a reference point for the contract to know where to begin looking. After this, the contract will make adjustments it if was an incorrect pos or if it was changed during the time between the transaction being sent and mined. The closer you are from the real position, the less amount of gas the contract will spend.
 
 ## 2. Average Price Fill-Or-Kill Orders:
 
