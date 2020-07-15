@@ -262,15 +262,92 @@ console.log(price.toString())
 
 ### **Placing orders ( Market Makers )**
 
-// before placing an offer the user should set allowance
+**Note**: Before making any offers, make sure to approve the contract to make transfers on your behalf.
 
 #### **Offer**
 
-There are couple of implementation of the _offer_ method. Each implementation is use for different cases.
+There are couple of implementation of the _offer_ method. Each implementation is used for different cases.
 
-First of the implementations can be found in the [simple market](https://github.com/daifoundation/maker-otc/blob/master/src/simple_market.sol#L240) smart contract.
+First of the implementations can be found [here](https://github.com/daifoundation/maker-otc/blob/master/src/matching_market.sol#L115).
+This method leverages the power of the matching engine and also takes into account some concerns. This methods is a wrapper of the second implementation ( described below ).
+The only difference is that the _rounding_ parameter is not passed explicitly.
 
+This is the **RECOMMENDED** way of placing new offers.
+
+Calling this method to make a new offer might have three outcomes:
+   - Offer is not matched and is put into the order book - sender becomes Maker
+   - Offer is fully matched - sender becomes Taker
+   - Offer is partially matched  - sender is both Maker and Taker. The remaining of the unfilled offer will be placed as a new order.
+   
+```solidity
+function offer( uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem, uint pos) public can_offer returns (uint)
 ```
+- **pay_amt**: Amount that will be sold. Number in _wei_ units.
+- **pay_gem**: Address of an ERC20 token contract. Token that maker sells
+- **buy_amt**: Amount to sell. Number in _wei_ units.
+- **buy_gem**: Address of an ERC20 token contract. Token that maker buys
+- **pos**: Position where to insert the new offer. 0 should be used if unknown.
+- **RETURN**: Id of the newly created offer.
+
+**Note:** It's important to understand how **_pos_** parameter works.
+**_pos_** is the **OFFER ID** of the first offer that is higher in price than the new offer that the sender is making.
+When making a new offer if the sender is **NOT CERTAIN** that the offer will be completely matched or making a new offer which is **WORSE** than the _best_ one,
+the pos should be calculate and passed with the method call.
+If the sender is **NOT CERTAIN** where the offer should be placed, _0_ should be sent as value for _pos_.
+That will trigger iteration over the side of the orderbook which might result in higher gas cost or a failed transaction ( out of gas )
+
+**Ethers JS(v5):**
+```javascript
+const OTC_ABI = //otc contract abi defined
+
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
+const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+
+const provider = new ethers.providers.Web3Provider(window.ethereum)
+const signer = provider.getSigner()
+
+const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer); 
+
+const pay_amt = ethers.utils.parseUnits("2.4", 18)
+const pay_gem = DAI
+const buy_amt = ethers.utils.parseUnits("0.2", 18)
+const buy_gem = WETH
+const price = pay_amt/buy_amt
+console.log(price.toString()) // 12
+
+// Orderbook:
+// 118281 - 20
+// 118283 - 18
+// 118282 - 15
+// 118257 - 10
+
+// Using 118282 because it's the first offer that has higher price than the new one
+const tx = await otcContract.functions['offer(uint256,address,uint256,address,uint256)'](pay_amt, pay_gem, buy_amt, buy_gem, 118282)
+```
+
+Second of the implementations can be found [here](https://github.com/daifoundation/maker-otc/blob/master/src/matching_market.sol#L129).
+This method leverages the power of the matching engine. It also takes into account some concerns. Since price is not stored anywhere but rather calculated
+there is some division happening which might cause rounding issues. Order book might end up having orders with dust amounts.
+Calling this method will create a new offer by taking the funds from a caller and putting them into the market escrow
+only if the amount that will be sold is higher than the dust limit set for the given token that will be sold.
+
+```solidity
+function offer( uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem, uint pos, bool rounding ) public can_offer returns (uint)
+```
+
+- **pay_amt**: Amount that will be sold. Number in _wei_ units.
+- **pay_gem**: Address of an ERC20 token contract. Token that maker sells
+- **buy_amt**: Amount to sell. Number in _wei_ units.
+- **buy_gem**: Address of an ERC20 token contract. Token that maker buys
+- **pos**: Position where to insert the new offer. 0 should be used if unknown.
+- **rounding**: Boolean value whether "close enough" orders should be matched.
+- **RETURN**: Id of the newly created offer.
+
+This function **COULD** be called but it's **NOT RECOMMENDED**.
+
+Third of the implementations can be found [here](https://github.com/daifoundation/maker-otc/blob/master/src/simple_market.sol#L240).
+```solidity
 function offer(uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem) public can_offer synchronized returns (uint id)
 ```
 
@@ -285,42 +362,6 @@ Calling this method will create a new offer by taking the funds from the caller 
 This function **SHOULD NOT** be called. It was used before creating the matching engine and it doesn't take advantage of it.
 Placing an order using this function may cause you offer not being listed on the orderbook.
 
-Second of the implementations can be found in the [matching_market](https://github.com/daifoundation/maker-otc/blob/master/src/matching_market.sol#L129) smart contract.
-This method leverages the power of the matching engine. It also takes into account some concerns. Since price is not stored anywhere but rather calculated
-there is some division happening which might cause rounding issues. Order book might end up having orders with dust amounts.
-Calling this method will create a new offer by taking the funds from a caller and putting them into the market escrow
-only if the amount that will be sold is higher than the dust limit set for the given token that will be sold.
-
-```
-function offer( uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem, uint pos, bool rounding ) public can_offer returns (uint)
-```
-
-- **pay_amt**: Amount that will be sold. Number in _wei_ units.
-- **pay_gem**: Address of an ERC20 token contract. Token that maker sells
-- **buy_amt**: Amount to sell. Number in _wei_ units.
-- **buy_gem**: Address of an ERC20 token contract. Token that maker buys
-- **pos**: Position where to insert the new offer. 0 should be used if unknown.
-- **rounding**: Boolean value whether "close enough" orders should be matched.
-- **RETURN**: Id of the newly created offer.
-
-This function **COULD** be called but it's **NOT RECOMMENDED**.
-
-Third of the implementations can be found in the [matching_market](https://github.com/daifoundation/maker-otc/blob/master/src/matching_market.sol#L115) smart contract.
-This method leverages the power of the matching engine and also takes into account some concerns. This methods is a wrapper of the second implementation ( mentioned above ).
-The only difference is that the _rounding_ parameter is not passed explicitly.
-
-```
-function offer( uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem, uint pos) public can_offer returns (uint)
-```
-
-- **pay_amt**: Amount that will be sold. Number in _wei_ units.
-- **pay_gem**: Address of an ERC20 token contract. Token that maker sells
-- **buy_amt**: Amount to sell. Number in _wei_ units.
-- **buy_gem**: Address of an ERC20 token contract. Token that maker buys
-- **pos**: Position where to insert the new offer. 0 should be used if unknown.
-- **RETURN**: Id of the newly created offer.
-
-This is the **RECOMMENDED** way of creating new offers.
 
 - **buy(id, amount)** - the buy function is used to fill a specific order (“cherrypicks”). By calling this function, it will execute and settle a trade all within one atomic transaction. **Note:** Can be called externally by the user, and is also called internally by the matching engine (see **offer()** method for more details).
 
@@ -343,17 +384,6 @@ This is the **RECOMMENDED** way of creating new offers.
 
   - `uint id` - offer id
   - Returns: `bool success`
-
-- **offer(pay_amt, pay_gem, buy_amt, buy_gem, pos)** - Create an order. If possible, will match existing orders. **Note:** the main API of the matching engine. This method should be used 99% of the time!
-
-  - `uint pay_amt` - sell amount of `pay_gem`
-  - `ERC20 pay_gem` - token that maker (ask) sells
-  - `uint buy_amt` - buy amount of `buy_gem`
-  - `ERC20 buy_gem` - token that maker (ask) buys
-  - `uint pos` - the estimated position to insert an offer
-  - Returns: `uint offerId`
-
-- **offer(pay_amt, pay_gem, buy_amt, buy_gem, pos, rounding)** - allows for overwriting the rounding parameter which is set to `true` as a default.
 
 **Note: regarding the Position (pos) parameter:** If you pass `pos=0` this means that the contract will have to find where to insert the order. In the case of a very large order book, it will take a significantly larger amount of gas to insert the new order (may even result in an out of gas error and cause the TX to fail) compared to inserting an order with known a (calculated in advance ) pos. Inserting a known pos is done manually. You must look at the current offers list and see which entry point position corresponds for your new order. This provides a reference point for the contract to know where to begin looking. After this, the contract will make adjustments it if was an incorrect pos or if it was changed during the time between the transaction being sent and mined. The closer you are from the real position, the less amount of gas the contract will spend.
 
