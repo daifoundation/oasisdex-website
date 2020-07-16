@@ -104,6 +104,7 @@ const DocsLayout = ({ children }) => {
               },
               'h1:hover .header-link, h2:hover .header-link, h3:hover .header-link, h4:hover .header-link, h5:hover .header-link, h6:hover .header-link': {
                 display: 'inline',
+                cursor: 'pointer',
               },
             }}
           >
