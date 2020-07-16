@@ -373,16 +373,16 @@ Placing an order using this function may cause you offer not being listed on the
 **Offer** method described in the _Placing orders_ section above could be used to take/fill orders.
 By placing a new order which fills completely or partially an existing one, the caller is partially or completely a _market taker_.
 
-**Buy** method that will be describe in this section could be used for taking orders but it **SHOULD** be used with caution.
+**Buy** method that will be described in this section could be used for taking orders but it **SHOULD** be used with caution.
 This method could be used for gas optimization if the caller wants to fill partially or completely single order but it **DOES NOT** guarantee the best price.
-It **SHOULD BE\* used with **CAUTIOUS\*\* only by people who knows what they are doing.
+It **SHOULD BE USED WITH CAUTION**.
 
 **Sell All Amount** and **Buy All Amount** described below are dedicated to Takers and works by executing a special type of order called **"Average Price fill-or-kill order"**.
 This order type is using the order book to calculate an average price with a threshold based on the amount the user wants to sell or buy.
 This order will never stay on the order book and if it cannot be matched (due to exceeding the gas block limit or by reaching the threshold),
 the transaction will revert. Those methods are the **RECOMMENDED** way to take orders.
 
-**Get Pay Amount** and ** Get Buy Amount** are helper methods that are used in combination with **Buy All Amount\* and **Sell All Amount\*\* ones.
+**Get Pay Amount** and **Get Buy Amount** are helper methods that are used in combination with **Buy All Amount** and **Sell All Amount** ones.
 
 #### **Sell All Amount**
 
@@ -391,7 +391,7 @@ This method attempts to spend all of the pay tokens to buy a specified minimum a
 It is possible for more tokens to be bought (depends on token price volatility and specified payAmt).
 Transaction will fail if the method call determines that the caller will receive less amount than the amount specified as _min_fill_amount_.
 
-```bash
+```solidity
 function sellAllAmount(ERC20 pay_gem, uint pay_amt, ERC20 buy_gem, uint min_fill_amount public returns (uint fill_amt)
 ```
 
@@ -403,7 +403,7 @@ function sellAllAmount(ERC20 pay_gem, uint pay_amt, ERC20 buy_gem, uint min_fill
   In order to avoid big losses the caller should provide threshold.
 - **RETURN**: - An amount that has been received in exchange for _pay_amt_
 
-**Use case**: Given the _WETH/DAI_ Market. _Bids_ side of the order book looks like as follow:
+**Use case**: Given the _WETH/DAI_ market. _Bids_ side of the order book looks like as follow:
 
 - **price**: 20 DAI, **amount**: 0.2 WETH, **total**: 4 DAI
 - **price**: 18 DAI, **amount**: 0.2 WETH, **total**: 3.6 DAI
@@ -414,7 +414,7 @@ function sellAllAmount(ERC20 pay_gem, uint pay_amt, ERC20 buy_gem, uint min_fill
 
   Given the current state of the orderbook the average price at which **1 WETH** will be sold is **17.2 DAI**.
 
-  While order signing, someone else might sign similar order, the _makers_ of the first 3 orders
+  While order mining, someone else might sign similar order, the _makers_ of the first 3 orders
   might decide to cancel them, some of those orders might be filled, new orders might be added.
   At the end of transaction the price at which **1 WETH** is sold might differ significantly.
 
@@ -470,7 +470,7 @@ It will calculate the amount to be paid, then that amount is transferred to this
 It is possible for more tokens to be paid (depends on token price volatility and specified payAmt).
 Transaction will fail if the method call determines that the caller will pay higher amount than the amount specified as _max_fill_amount_.
 
-```bash
+```solidity
 function buyAllAmount(ERC20 buy_gem, uint buy_amt, ERC20 pay_gem, uint max_fill_amount) public returns (uint fill_amt)
 ```
 
@@ -493,7 +493,7 @@ function buyAllAmount(ERC20 buy_gem, uint buy_amt, ERC20 pay_gem, uint max_fill_
 
   Given the current state of the orderbook the average price at which **1 WETH** will be bought is **24.6 DAI**.
 
-  While order signing, someone else might sign similar order, the _makers_ of the first 3 orders
+  While order mining, someone else might sign similar order, the _makers_ of the first 3 orders
   might decide to cancel them, some of those orders might be filled, new orders might be added.
   At the end of transaction the price at which **1 WETH** is bought might differ significantly.
 
@@ -655,8 +655,8 @@ console.log(ethers.utils.formatEther(fill_amt.toString())) // 24.8
 #### **Buy**
 
 The buy function is used to fill a specific order (“cherrypicks”). By calling this function, it will execute and settle a trade all within one atomic transaction.
-It will transfers funds from caller to offer maker, and from market to caller
-It is **NOT RECOMMENDED** to call this method directly. May end up filling an order that is not the optimal one.
+It will transfers funds from caller to offer maker, and from maker (escrow) to caller.
+It is **NOT RECOMMENDED** to call this method directly as it may end up filling an order that is not the optimal one.
 
 ```solidity
 function buy(uint id, uint amount) public can_buy(id) synchronized returns (bool)
@@ -709,7 +709,7 @@ function take(bytes32 id, uint128 maxTakeAmount) public
 
 ### **Offer management**
 
-Methods that operate over ones offers.
+Methods that can be called by an offer's owner.
 
 #### **Cancel**
 
