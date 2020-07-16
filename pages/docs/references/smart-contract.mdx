@@ -5,98 +5,738 @@ import { Image } from 'theme-ui';
 
 # Smart Contract API Reference
 
-## Overview
+## **Overview**
 
-1. **Matching Engine:** This API is used by most users, as it is the API for accessing the sorted order book and matching engine. The order book is implemented as a double-linked sorted list and at any one time the list should return sorted.
-2. **Average Price Fill-Or-Kill Orders:** This API is dedicated to **Takers** and works by executing a special type of order called "Average Price fill-or-kill order". This order type is using the order book to calculate an average price with a threshold based on the amount the user wants to sell or buy. This order will never stay on the order book and if it cannot be matched (due to exceeding the gas block limit or by reaching the threshold), the transaction will revert. For example, the discontinued frontend [oasis.direct](https://oasis.direct) used this, and it is now what **[Oasis Instant](http://oasis.app/instant)** uses.
-3. **Unsorted List Operations** (_This API is largely deprecated_): This covers all actions for accessing an “unsorted order book”. An unsorted order book works as a placeholder for orders before they are moved to the sorted order book by external actors, called [Keepers](https://github.com/makerdao/developerguides/blob/master/keepers/auctions/auctions-101.md#keepers). This API can also be used for OTC trades, although it is important to note because this can be done by anyone, there is no guarantee that the order will **not** be moved to the sorted order book. When placing orders in the unsorted order book, it costs much less gas to execute, as there is no matching required on-chain.
+### **Matching Market**
+ - #### **Order book Navigation**
+ - #### **Placing orders ( Market Makers)**
+ - #### **Taking orders ( Market Takers)**
+ - #### **Order Management**
 
-   **Note:** This feature is largely deprecated. It will likely be removed in the upgraded version of the contract.
+## **Matching Market**
 
-4. **Administrative Methods:** This includes all of the administrative functions used to set the market parameters.
+[The Matching Market](https://github.com/daifoundation/maker-otc/blob/master/src/matching_market.sol)
+is an extention of the [Expiring Market](https://github.com/daifoundation/maker-otc/blob/master/src/expiring_market.sol)
+which is an extention of the [Simple Market](https://github.com/daifoundation/maker-otc/blob/master/src/simple_market.sol).
+It leverages the power of the matching engine and adds some new events.
 
-# Key Functionalities within each group
+### **Orderbook Navigation**
 
-## 1. Matching Market:
+Those methods give the ability to navigate throughout the order book.
+The order book is implemented as a double-linked sorted list and at any time the list should be sorted.
+It has two sides. One of the sides contains all buy offers which are called _bids_ and the other side contains
+all of the sell orders which are called `asks`
 
-- **getBestOffer(pay_gem, buy_gem)** - gets an offer from the top of the order book. Use with combination with `getWorseOffer()/getBetterOffer()`
+#### **Get Best Offer**
 
-  - `ERC20 pay_gem` - token that maker (ask) sells
-  - `ERC20 buy_gem` - token that maker (ask) buys
-  - Returns: `uint offerId`
+Used to get the best offer for a given token pair.
 
-- **getWorseOffer(id)/getBetterOffer(id)** - these are both used for the navigation through an order book.
+Given the following market _WETH/DAI_ if _WETH_'s address is passed as a _pay_gem_ then the id of the best _ask_ will be returned
+If _DAI_'s address is passed as a _pay_gem_ then the id of the best _bid_ will be returned.
+This method is used in combination with _getWorseOffer / getBetterOffer_.
 
-  - `uint id` - offer id
-  - Returns: `uint offerId`
+```solidity
+function getBestOffer(ERC20 pay_gem, ERC20 buy_gem) public view returns(uint)
+```
 
-- **getOfferCount(pay_gem, buy_gem)** - return the size of the order book.
+- **pay_gem**: An address of an ERC20 token contract
+- **buy_gem**: An address of an ERC20 token contract
+- **RETURN**: Id(number) of the best offer for **pay_gem:buy_gem** pair.
 
-  - `ERC20 pay_gem` - token that maker (ask) sells
-  - `ERC20 buy_gem` - token that maker (ask) buys
-  - Returns: `uint count`
+**Seth:**
 
-- **getOffer(id)** - return information about the order with a given order ID.
+```bash
+export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
+export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
+export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
 
-  - `uint id` - offer id
-  - Returns: `(uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem)`
+$ seth --to-dec $(seth call $OTC_MARKET 'getBestOffer(address,address)' $WETH $DAI)
+118172
+```
 
-- **buy(id, amount)** - the buy function is used to fill a specific order (“cherrypicks”). By calling this function, it will execute and settle a trade all within one atomic transaction. **Note:** Can be called externally by the user, and is also called internally by the matching engine (see **offer()** method for more details).
+**Ethers JS (v5):**
 
-  - `uint id` - offer id
-  - `uint amount` - amount
-  - Returns: `bool success`
+```javascript
+const OTC_ABI = //otc contract abi defined
 
-- **take(id, amount)** - provides the byte32 version of **buy().**
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
+const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+const provider = new ethers.providers.Web3Provider(window.ethereum)
 
-  - `bytes32 id` - offer id
-  - `uint amount` - amount
-  - Returns: `bool success`
+const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, provider);
+const bestOfferId = await otcContract.getBestOffer(WETH, DAI)
 
-- **cancel(id)** - cancels an order with a given order ID.
+console.log(bestOfferId.toString()) // 118172
+```
 
-  - `uint id` - offer id
-  - Returns: `bool success`
+#### **Get Worse Offer**
 
-- **kill(id)** - provides the byte32 version of cancel().
+Used to get the next worse offer in the sorted linked list. If the offer which _id_ is used in the method call ( current offer ) is an _ask_ one then a worse offer will have higher price.
+If the current offer is a `bid` one then a worse offer will have lower price
 
-  - `uint id` - offer id
-  - Returns: `bool success`
+```solidity
+function getWorseOffer(uint id) public view returns(uint)
+```
 
-- **offer(pay_amt, pay_gem, buy_amt, buy_gem, pos)** - Create an order. If possible, will match existing orders. **Note:** the main API of the matching engine. This method should be used 99% of the time!
+- **id**: Id of an offer compareted to which a worse offer will be returned
+- **RETURN**: Id(number) of a worse offer
 
-  - `uint pay_amt` - sell amount of `pay_gem`
-  - `ERC20 pay_gem` - token that maker (ask) sells
-  - `uint buy_amt` - buy amount of `buy_gem`
-  - `ERC20 buy_gem` - token that maker (ask) buys
-  - `uint pos` - the estimated position to insert an offer
-  - Returns: `uint offerId`
+**Seth:**
 
-- **offer(pay_amt, pay_gem, buy_amt, buy_gem, pos, rounding)** - allows for overwriting the rounding parameter which is set to `true` as a default.
+```bash
+export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
+export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
+export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
 
-  **Note: regarding the Position (pos) parameter:** If you pass `pos=0` this means that the contract will have to find where to insert the order. In the case of a very large order book, it will take a significantly larger amount of gas to insert the new order (may even result in an out of gas error and cause the TX to fail) compared to inserting an order with known a (calculated in advance ) pos. Inserting a known pos is done manually. You must look at the current offers list and see which entry point position corresponds for your new order. This provides a reference point for the contract to know where to begin looking. After this, the contract will make adjustments it if was an incorrect pos or if it was changed during the time between the transaction being sent and mined. The closer you are from the real position, the less amount of gas the contract will spend.
+$ BEST_OFFER_ID=$(seth --to-dec $(seth call $OTC_MARKET 'getBestOffer(address,address)' $WETH $DAI))
 
-## 2. Average Price Fill-Or-Kill Orders:
+$ seth --to-dec $(seth call $OTC_MARKET 'getWorseOffer(uint)' $BEST_OFFER_ID)
+13
+```
 
-- **sellAllAmount(pay_gem, pay_amt, buy_gem, min_fill_amount) -** is used when triggering an ERC20 for ERC20 exchange, where the payAmt is sent to the matching market from the caller. This function attempts to spend all of the pay tokens to buy a specified minimum amount of buy tokens. It is possible for more tokens to be bought if it is possible (depends on token price volatility and specified payAmt).
-- **buyAllAmount(buy_gem, buy_amt, pay_gem, max_fill_amount) -** is used when triggering an ERC20 token for ERC20 token exchange. This function works by attempting to buy a specified amount of buy tokens for a specified amount of pay tokens (up to a certain price). It will calculate the amount to be paid, then that amount is transferred to this matching market. This function is used when there is an amount to buy and it gets the best offer for the described token pair.
-- **getBuyAmount(buy_gem, pay_gem, pay_amt) -** This function is used to get the `buy` amount and will return how much of the collateral token can be bought by paying the specified`pay_amt`. Its purpose is to retrieve the best offer for the token pair.
-- **getPayAmount(pay_gem, buy_gem, buy_amt) -** This function is used to get the `pay` amount and will return how much of the collateral token is needed in order to buy the specified `buy_amt`. This also tries to retrieve the best offer for the token pair.
+**Ethers JS (v5):**
 
-## 3. Unsorted List Operations (Largely Deprecated)
+```javascript
+const OTC_ABI = //otc contract abi defined
 
-- **offer(pay_amt, pay_gem, buy_amt, buy_gem)** - creates offer in an unsorted list.
-- **make(pay_gem, buy_gem, pay_amt, buy_amt)** - byte32 version of offer(pay_amt, pay_gem, buy_amt, buy_gem()).
-- **insert(id, pos) -** inserts offer with Id at the pos from unsorted to sorted list
-- **del_rank() -** called by keepers and is used to delete the rank[id] of an offer
-- **getFirstUnsortedOffer() -** This function is used to get the first unsorted offer that was inserted by a contract.
-- **getNextUnsortedOffer() -** This function is used to get the next unsorted offer and is used to cycle through all of the unsorted offers list.
-- **isOfferSorted() -** This function is used to determine/check if an offer has in fact been sorted.
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
+const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+const provider = new ethers.providers.Web3Provider(window.ethereum)
 
-## 4. Administrative Methods
+const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, provider);
+const bestOfferId = await otcContract.getBestOffer(WETH, DAI)
+const worseOfferId = await otcContract.getWorseOffer(bestOfferId)
+console.log(worseOfferId.toString()) // 13
+```
 
-- **stop()** - stops the market.
-- **setMatchingEnabled()** - stops matching engine.
-- **setMinSell()/getMinSell()** - sets/gets the dust limit for a token.
+#### **Get Better Offer**
+
+Used to get the next better offer in the sorted linked list. If the offer which _id_ is used in the method call ( current offer ) is an `ask` one then a better offer will have lower price.
+If the current offer is a `bid` one then a better offer will have higher price
+
+```solidity
+function getBetterOffer(uint id) public view returns(uint)
+```
+
+- **id**: Id of an offer compareted to which a worse offer will be returned
+- **RETURN**: Id(number) of a better offer
+
+**Seth:**
+
+```bash
+export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
+export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
+export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
+
+$ seth --to-dec $(seth call $OTC_MARKET 'getBetterOffer(uint)' 13)
+118172
+
+```
+
+**Ethers JS (v5):**
+
+```javascript
+const OTC_ABI = //otc contract abi defined
+
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const provider = new ethers.providers.Web3Provider(window.ethereum)
+
+const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, provider);
+
+const currentOfferId = 13
+const betterOfferId = await otcContract.getBetterOffer(currentOfferId)
+console.log(betterOfferId.toString())
+```
+
+#### **Get Offer Count**
+
+Used to get the amount of offers for a given side of the order book.
+Give the following market _WETH/DAI_ if _WETH_'s address is passed as a _pay_gem_ then the size of the _asks_ is returned. If _DAI_'s address is passed as a _pay_gem_ then the size of the _bids_ is returned.
+
+```solidity
+function getOfferCount(ERC20 pay_gem, ERC20 buy_gem) public view returns(uint)
+```
+
+- **pay_gem**: An address of an ERC20 token contract
+- **buy_gem**: An address of an ERC20 token contract
+- **RETURN**: Size(number) either of all `asks` or all `bids`.
+
+**Seth:**
+
+```bash
+export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
+export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
+export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
+
+// Size of asks
+$ seth --to-dec $(seth call $OTC_MARKET 'getOfferCount(address,address)' $WETH $DAI)
+14
+
+// size of bids
+$ seth --to-dec $(seth call $OTC_MARKET 'getOfferCount(address,address)' $DAI $WETH)
+1
+```
+
+**Ethers JS (v5):**
+
+```javascript
+const OTC_ABI = //otc contract abi defined
+
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
+const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+const provider = new ethers.providers.Web3Provider(window.ethereum)
+
+const asksSize = await otcContract.getOfferCount(WETH, DAI)
+const bidsSize = await otcContract.getOfferCount(DAI, WETH)
+console.log(`Asks Size: ${asksSize.toString()}`, `Bid Size: ${bidsSize.toString()}`) // Ask Size: 14, Bids Size: 1
+```
+
+#### **Get Offer**
+
+Used to retrieve offer details for a specific offer id.
+It's important to understand that there is no price value stored in the offer's data.
+Price is determined by dividing token amounts.
+If the offer is an _ask_ one then the price is calculated _buy_amt/pay_amt_ and if the offer is _bid_ then the price is _pay_amt/buy_amt_
+
+```solidity
+function getOffer(uint id) public view returns (uint, ERC20, uint, ERC20)
+```
+
+- **id**: An id of the offer
+- **RETURN**: Tuple of four values _(pay_amt pay_gem buy_amt buy_gem)_.
+
+  _pay_amt_ - amount to sell
+
+  _pay_gem_ - token that sells
+
+  _buy_amt_ - amount to buy
+
+  _buy_gem_ - token that buys
+
+**Seth:**
+
+```solidity
+export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
+export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
+export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
+
+$ seth call $OTC_MARKET 'getOffer(uint)(uint256,address,uint256,address)' 118172
+16345785d8a0000
+d0a1e359811322d97991e03f863a0c30c2cf029c // 0xd0a1e359811322d97991e03f863a0c30c2cf029c - WETH address
+ebec21ee1da40000
+4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa // 0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa - DAI address
+
+$ seth --from-wei $(seth --to-dec 16345785d8a0000)
+0.100000000000000000
+
+$ seth --from-wei $(seth --to-dec ebec21ee1da40000)
+17.000000000000000000
+```
+
+**Ethers JS (v5):**
+
+```javascript
+const OTC_ABI = //otc contract abi defined
+
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
+const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+const provider = new ethers.providers.Web3Provider(window.ethereum)
+
+const bestOfferId = await otcContract.getBestOffer(WETH, DAI)
+const [pay_amt, pay_gem, buy_amt, buy_gem ] = await otcContract.getOffer(bestOfferId)
+
+console.log(pay_gem) //  0xd0a1e359811322d97991e03f863a0c30c2cf029c - WETH address
+console.log(ethers.utils.formatEther(pay_amt)) // 0.1
+console.log(buy_gem) // 0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa - DAI address
+console.log(ethers.utils.formatEther(buy_amt)) // 17.00
+
+const price = buy_amt.div(pay_amt)
+console.log(price.toString())
+```
+
+### **Placing orders ( Market Makers )**
+
+**Note**: Before making any offers, make sure to approve the contract to make transfers on your behalf.
+
+#### **Offer**
+
+There are couple of implementation of the _offer_ method. Each implementation is used for different cases.
+
+First of the implementations can be found [here](https://github.com/daifoundation/maker-otc/blob/master/src/matching_market.sol#L115).
+This method leverages the power of the matching engine and also takes into account some concerns. This methods is a wrapper of the second implementation ( described below ).
+The only difference is that the _rounding_ parameter is not passed explicitly.
+
+This is the **RECOMMENDED** way of placing new offers.
+
+Calling this method to make a new offer might have three outcomes:
+   - Offer is not matched and is put into the order book - caller becomes Maker
+   - Offer is fully matched - caller becomes Taker
+   - Offer is partially matched  - caller is both Maker and Taker. The remaining of the unfilled offer will be placed as a new order.
+   
+```solidity
+function offer( uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem, uint pos) public can_offer returns (uint)
+```
+- **pay_amt**: Amount that will be sold. Number in _wei_ units.
+- **pay_gem**: Address of an ERC20 token contract. Token that maker sells
+- **buy_amt**: Amount to sell. Number in _wei_ units.
+- **buy_gem**: Address of an ERC20 token contract. Token that maker buys
+- **pos**: Position where to insert the new offer. 0 should be used if unknown.
+- **RETURN**: Id of the newly created offer.
+
+**Note:** It's important to understand how **_pos_** parameter works.
+**_pos_** is the **OFFER ID** of the first offer that is higher in price than the new offer that the caller is making.
+If you pass pos=0 this means that the contract will have to find where to insert the order. 
+In the case of a very large order book, it will take a significantly larger amount of gas to insert the new order (may even result in an out of gas error and cause the TX to fail)
+compared to inserting an order with known a (calculated in advance ) pos. Inserting a known pos is done manually.
+You must look at the current offers list and see which entry point position corresponds for your new order.
+This provides a reference point for the contract to know where to begin looking.
+After this, the contract will make adjustments it if was an incorrect pos or if it was changed during the time between the transaction being sent and mined.
+The closer you are from the real position, the less amount of gas the contract will spend.
+
+**Ethers JS (v5):**
+```javascript
+const OTC_ABI = //otc contract abi defined
+
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
+const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+
+const provider = new ethers.providers.Web3Provider(window.ethereum)
+const signer = provider.getSigner()
+
+const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer); 
+
+const pay_amt = ethers.utils.parseUnits("2.4", 18)
+const pay_gem = DAI
+const buy_amt = ethers.utils.parseUnits("0.2", 18)
+const buy_gem = WETH
+const price = pay_amt/buy_amt
+console.log(price.toString()) // 12
+
+// Orderbook:
+// 118281 - 20
+// 118283 - 18
+// 118282 - 15
+// 118257 - 10
+
+// Using 118282 because it's the first offer that has higher price than the new one
+const tx = await otcContract.functions['offer(uint256,address,uint256,address,uint256)'](pay_amt, pay_gem, buy_amt, buy_gem, 118282)
+```
+
+Second of the implementations can be found [here](https://github.com/daifoundation/maker-otc/blob/master/src/matching_market.sol#L129).
+This method leverages the power of the matching engine. It also takes into account some concerns. Since price is not stored anywhere but rather calculated
+there is some division happening which might cause rounding issues. Order book might end up having orders with dust amounts.
+Calling this method will create a new offer by taking the funds from a caller and putting them into the market escrow
+only if the amount that will be sold is higher than the dust limit set for the given token that will be sold.
+
+```solidity
+function offer( uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem, uint pos, bool rounding ) public can_offer returns (uint)
+```
+
+- **pay_amt**: Amount that will be sold. Number in _wei_ units.
+- **pay_gem**: Address of an ERC20 token contract. Token that maker sells
+- **buy_amt**: Amount to sell. Number in _wei_ units.
+- **buy_gem**: Address of an ERC20 token contract. Token that maker buys
+- **pos**: Position where to insert the new offer. 0 should be used if unknown.
+- **rounding**: Boolean value whether "close enough" orders should be matched.
+- **RETURN**: Id of the newly created offer.
+
+This function **COULD** be called but it's **NOT RECOMMENDED**.
+
+Third of the implementations can be found [here](https://github.com/daifoundation/maker-otc/blob/master/src/simple_market.sol#L240).
+```solidity
+function offer(uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem) public can_offer synchronized returns (uint id)
+```
+
+Calling this method will create a new offer by taking the funds from the caller and putting them into the market escrow
+
+- **pay_amt**: Amount that will be sold. Number in _wei_ units.
+- **pay_gem**: Address of an ERC20 token contract. Token that maker sells
+- **buy_amt**: Amount to sell. Number in _wei_ units.
+- **buy_gem**: Address of an ERC20 token contract. Token that maker buys
+- **RETURN**: Id of the newly created offer.
+
+This function **SHOULD NOT** be called. It was used before creating the matching engine and it doesn't take advantage of it.
+Placing an order using this function may cause you offer not being listed on the orderbook.
+
+
+### **Taking/Filling orders ( Market Takers )**
+
+**Offer** method described in the _Placing orders_ section above could be used to take/fill orders.
+By placing a new order which fills completely or partially an existing one, the caller is partially or completely a _market taker_.
+
+**Buy** method that will be describe in this section could be used for taking orders but it **SHOULD** be used with caution. 
+This method could be used for gas optimization if the caller wants to fill partially or completely single order but it **DOES NOT** guarantee the best price.
+It **SHOULD BE* used with **CAUTIOUS** only by people who knows what they are doing.
+
+**Sell All Amount** and **Buy All Amount** described below are dedicated to Takers and works by executing a special type of order called **"Average Price fill-or-kill order"**.
+This order type is using the order book to calculate an average price with a threshold based on the amount the user wants to sell or buy.
+This order will never stay on the order book and if it cannot be matched (due to exceeding the gas block limit or by reaching the threshold),
+the transaction will revert. Those methods are the **RECOMMENDED** way to take orders.
+
+**Get Pay Amount** and ** Get Buy Amount** are helper methods that are used in combination with **Buy All Amount* and **Sell All Amount** ones.
+
+#### **Sell All Amount**
+
+Used to exchange ERC20 tokens, where the payAmt is sent to the matching market from the caller.
+This method attempts to spend all of the pay tokens to buy a specified minimum amount of buy tokens.
+It is possible for more tokens to be bought (depends on token price volatility and specified payAmt).
+Transaction will fail if the method call determines that the caller will receive less amount than the amount specified as _min_fill_amount_.
+
+```bash
+function sellAllAmount(ERC20 pay_gem, uint pay_amt, ERC20 buy_gem, uint min_fill_amount public returns (uint fill_amt)
+```
+
+- **pay_gem**: An address of an ERC20 token contract that will be sold
+- **pay_amt**: An amount that will be sold
+- **buy_gem**: An address of an ERC20 token contract that will be bought
+- **min_fill_amount** - The least amount that the caller is willing to receive.
+If slippage happens and price declines the user might end up with less  of the _buy_gem_.
+In order to avoid big losses the caller should provide threshold.
+- **RETURN**: - An amount that has been received in exchange for _pay_amt_
+
+**Use case**: Given the _WETH/DAI_ Market. _Bids_ side of the order book looks like as follow:
+ - **price**: 20 DAI, **amount**: 0.2 WETH, **total**: 4 DAI
+ - **price**: 18 DAI, **amount**: 0.2 WETH, **total**: 3.6 DAI
+ - **price**: 16 DAI, **amount**: 0.6 WETH, **total**: 7.6 DAI
+ - **price**: 10 DAI, **amount**: 1.0 WETH, **total**: 10.0 DAI
+
+   As an user I would like to sell **1 WETH**. 
+
+   Given the current state of the orderbook the average price at which **1 WETH** will be sold is **17.2 DAI**.
+
+   While order signing, someone else might sign similar order, the _makers_ of the first 3 orders
+   might decide to cancel them, some of those orders might be filled, new orders might be added.
+   At the end of transaction the price at which **1 WETH** is sold might differ significantly.
+
+   As an user I anticipate slippage and add 5% on the final price.
+   Worst price that could be possibly applied and still have the transaction successful is **16.34 DAI**.
+   
+   **16.34 DAI** will be used as _min_fill_amount_ value. If the price declines below that number during transaction execution it will fail.
+
+**Seth:**
+```
+export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
+export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
+export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
+
+$ seth send $OTC_MARKET 'sellAllAmount(address,uint,address,uint)' $WETH $(seth --to-uint256 $(seth --to-wei 1 ether)) $DAI $(seth --to-uint256 $(seth --to-wei 17.2 ether))
+```
+
+**Ether Js (v5):**
+```javascript
+const OTC_ABI = //otc contract abi defined
+
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
+const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+
+const provider = new ethers.providers.Web3Provider(window.ethereum)
+const signer = provider.getSigner()
+
+const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer); 
+
+// WETH/DAI Market - Orderbook (BIDS)
+// Price (DAI)   Amount(WETH)  Total(DAI)
+// 20 DAI        0.2 WETH      4 DAI
+// 18 DAI        0.2 WETH      3.6 DAI
+// 16 DAI        0.6 WETH      7.6 DAI
+// 10 DAI        1.0 WETH      10 DAI
+
+const pay_gem = WETH
+const buy_amt = ethers.utils.parseUnits("1", 18)
+const buy_gem = DAI
+const min_fill_amt = ethers.utils.parseUnits("16.34", 18) // 5% slippage added
+
+await otcContract.functions.sellAllAmount(pay_gem, buy_amt, buy_gem, min_fill_amt)
+```
+
+#### **Buy All Amount**
+
+Used to exchange ERC20 tokens. where the buyAmt is sent to the matching market from the caller. 
+This method attemps to buy a specified amount of buy tokens for a specified amount of pay tokens (up to a certain price).
+It will calculate the amount to be paid, then that amount is transferred to this matching market. 
+It is possible for more tokens to be paid (depends on token price volatility and specified payAmt).
+Transaction will fail if the method call determines that the caller will pay higher amount than the amount specified as _max_fill_amount_.
+
+```bash
+function buyAllAmount(ERC20 buy_gem, uint buy_amt, ERC20 pay_gem, uint max_fill_amount) public returns (uint fill_amt)
+```
+
+- **buy_gem**: An address of an ERC20 token contract that will be bought
+- **buy_amt**: An amount that will be bought
+- **pay_gem**: An address of an ERC20 token contract that will be sold
+- **max_fill_amount** - The most amount that the caller is willing to pay.
+If slippage happens and price increases the user might end up with paying more of the _pay_gem_.
+In order to avoid big losses the caller should provide threshold.
+- **RETURN**: - An amount that has been paid for _buy_amt_
+
+**Use case**: Given the _WETH/DAI_ Market. _Ask_ side of the order book looks like as follow:
+ - **price**: 30 DAI, **amount**: 1.0 WETH, **total**: 30 DAI
+ - **price**: 26 DAI, **amount**: 0.6 WETH, **total**: 15.6 DAI
+ - **price**: 24 DAI, **amount**: 0.2 WETH, **total**: 4.8 DAI
+ - **price**: 22 DAI, **amount**: 0.2 WETH, **total**: 4.4 DAI
+
+   As an user I would like to buy **1 WETH**. 
+
+   Given the current state of the orderbook the average price at which **1 WETH** will be bought is **24.6 DAI**.
+
+   While order signing, someone else might sign similar order, the _makers_ of the first 3 orders
+   might decide to cancel them, some of those orders might be filled, new orders might be added.
+   At the end of transaction the price at which **1 WETH** is bought might differ significantly.
+
+   As an user I anticipate slippage and add 5% on the final price.
+   Worst price that could be possibly applied and still have the transaction successful is **25.83 DAI**.
+   
+   **25.83 DAI** will be used as _max_fill_amount_ value. If the price goes above that number during transaction execution it will fail.
+
+**Seth:**
+```
+export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
+export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
+export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
+
+$ seth send $OTC_MARKET 'buyAllAmount(address,uint,address,uint)' $WETH $(seth --to-uint256 $(seth --to-wei 1 ether)) $DAI $(seth --to-uint256 $(seth --to-wei 25.83 ether))
+```
+
+**Ether Js (v5):**
+```javascript
+const OTC_ABI = //otc contract abi defined
+
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
+const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+
+const provider = new ethers.providers.Web3Provider(window.ethereum)
+const signer = provider.getSigner()
+
+const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer); 
+
+// WETH/DAI Market - Orderbook (ASKS)
+// Price (DAI)   Amount(WETH)  Total(DAI)
+// 30 DAI        1.0 WETH      30 DAI
+// 26 DAI        0.6 WETH      15.6 DAI
+// 24 DAI        0.2 WETH      4.8 DAI
+// 22 DAI        0.2 WETH      4.4 DAI
+
+const pay_gem = DAI
+const buy_amt = ethers.utils.parseUnits("1", 18)
+const buy_gem = WETH
+const max_fill_amt = ethers.utils.parseUnits("25.83", 18) // 5% slippage added
+
+await otcContract.functions.buyAllAmount(buy_gem, buy_amt, pay_gem, max_fill_amt)
+```
+
+#### **Get Buy Amount**
+
+This function is used to get the _buy_ amount and will return how much of the collateral token can be bought by paying the specified _pay_amt_.
+Its purpose is to retrieve the best offer for the token pair.
+
+```solidity
+function getBuyAmount(ERC20 buy_gem, ERC20 pay_gem, uint pay_amt) public view returns (uint fill_amt)
+```
+
+- **buy_gem**: An address of ERC20 token contract that will be bought
+- **pay_gem**: An address of ERC20 token contract that will be sold
+- **pay_amt**: Amount that the caller is willing to pay
+- **RETURN**: Amount of _buy_gem_ that the caller is going to receive for paying _pay_amt_ of _pay_gem_.
+If there are not enough orders to fill the amount it will fail
+
+**Seth:**
+```bash
+export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
+export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
+export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
+
+$ seth --from-wei $(seth --to-dec $(seth call $OTC_MARKET 'getBuyAmount(address,address,uint)' $DAI $WETH $(seth --to-uint256 $(seth --to-wei 1 ether))))
+
+17.200000000000000000
+```
+
+**Ethers JS (v5):**
+```javascript
+const OTC_ABI = //otc contract abi defined
+
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
+const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+
+const provider = new ethers.providers.Web3Provider(window.ethereum)
+const signer = provider.getSigner()
+
+const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer); 
+
+// WETH/DAI Market - Orderbook (BIDS)
+// Price (DAI)   Amount(WETH)  Total(DAI)
+// 20 DAI        0.2 WETH      4 DAI
+// 18 DAI        0.2 WETH      3.6 DAI
+// 16 DAI        0.6 WETH      7.6 DAI
+// 10 DAI        1.0 WETH      10 DAI
+
+const pay_gem = WETH
+const pay_amt = ethers.utils.parseUnits("1", 18)
+const buy_gem = DAI
+  
+const fill_amt =  await otcContract.functions.getBuyAmount(buy_gem, pay_gem, pay_amt,)
+console.log(ethers.utils.formatEther(fill_amt.toString())) // 17.2
+```
+
+#### **Get Pay Amount**
+
+This function is used to get the _pay_ amount and will return how much of the collateral token is needed in order to buy the specified _buy_amt_.
+This also tries to retrieve the best offer for the token pair.
+
+```solidity
+function getPayAmount(ERC20 pay_gem, ERC20 buy_gem, uint buy_amt) public view returns (uint fill_amt)
+```
+
+- **pay_gem**: An address of ERC20 token contract that will be sold
+- **buy_gem**: An address of ERC20 token contract that will be bought
+- **buy_amt**: Amount that the caller wants to receive
+- **RETURN**: Amount of _apy_gem_ that the caller is going to pay for receiving _buy_amt_ of _buy_gem_.
+If there are not enough orders to fill the amount it will fail
+
+**Seth:**
+```bash
+export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
+export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
+export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
+
+$ seth --from-wei $(seth --to-dec $(seth call $OTC_MARKET 'getPayAmount(address,address,uint)' $DAI $WETH $(seth --to-uint256 $(seth --to-wei 1 ether))))
+24.800000000000000000
+```
+
+**Ethers JS (v5):"
+```javascript
+const OTC_ABI = //otc contract abi defined
+
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
+const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+
+const provider = new ethers.providers.Web3Provider(window.ethereum)
+const signer = provider.getSigner()
+
+const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer); 
+
+// WETH/DAI Market - Orderbook (ASKS)
+// Price (DAI)   Amount(WETH)  Total(DAI)
+// 30 DAI        1.0 WETH      30 DAI
+// 26 DAI        0.6 WETH      15.6 DAI
+// 24 DAI        0.2 WETH      4.8 DAI
+// 22 DAI        0.2 WETH      4.4 DAI
+
+const pay_gem = DAI
+const buy_amt = ethers.utils.parseUnits("1", 18)
+const buy_gem = WETH
+
+const fill_amt = await otcContract.functions.getPayAmount(pay_gem,buy_gem, buy_amt)
+console.log(ethers.utils.formatEther(fill_amt.toString())) // 24.8
+```
+
+#### **Buy**
+
+The buy function is used to fill a specific order (“cherrypicks”). By calling this function, it will execute and settle a trade all within one atomic transaction.
+It will transfers funds from caller to offer maker, and from market to caller
+It is **NOT RECOMMENDED** to call this method directly. May end up filling an order that is not the optimal one.
+
+```solidity
+function buy(uint id, uint amount) public can_buy(id) synchronized returns (bool)
+```
+  - **id**: An id of the offer that the send is willing to fill
+  - **amount**: Amount that the user is willing to fill. Could be partial or full amount.
+  - **RETURN**:  Boolean result whether the transaction was successful
+
+**Seth:**
+```bash
+export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
+
+# Orderbook (Bids)
+# 118282 0.2 (WETH) 3 DAI
+$ seth send $OTC_MARKET 'buy(uint,uint)' 118282 $(seth --to-uint256 $(seth --to-wei 3 ether))
+```
+
+**Ethers JS (v5):**
+```javascript
+const OTC_ABI = //otc contract abi defined
+
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
+const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+
+const provider = new ethers.providers.Web3Provider(window.ethereum)
+const signer = provider.getSigner()
+
+const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer); 
+
+// Orderbook (Bids)
+// 118257 0.2 (WETH) 2 DAI
+await otcContract.functions.buy(118257, ethers.utils.parseUnits("2", 18))
+```
+
+#### **Take**
+
+This is the _byte32_ version of the **Buy** function.
+```solidity
+function take(bytes32 id, uint128 maxTakeAmount) public
+```
+
+- **id**: An id of the offer that the send is willing to fill
+- **amount**: Amount that the user is willing to fill. Could be partial or full amount.
+- **RETURN**: Nothing. Transaction either succeeds or fails.
+
+### **Offer management**
+
+Methods that operate over ones offers.
+
+#### **Cancel**
+
+Used to cancel an offer with specific id placed by the caller.
+
+```solidity
+function cancel(uint id) public can_cancel(id) synchronized returns (bool success)
+```
+
+- **id**: An id of the offer that needs to be cancelled
+- **RETURN**: Boolean result whether the transaction was successful
+
+**Seth:**
+```bash
+export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
+
+$ seth send $OTC_MARKET 'cancel(uint)' 118283
+```
+
+**Ethers JS (v5):**
+```javascript
+const OTC_ABI = //otc contract abi defined
+
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
+const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+
+const provider = new ethers.providers.Web3Provider(window.ethereum)
+const signer = provider.getSigner()
+
+const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer);
+
+otcContract.functions.cancel(118281)
+```
+
+#### **Kill**
+
+This is the _byte32_ version of the **Cancel** function.
+
+```solidity
+function kill(bytes32 id) public
+```
+
+- **id**: An id of the offer that needs to be cancelled
+- **RETURN**: Nothing. Either the transaction is successful or fails
+
 
 </DocsLayout>

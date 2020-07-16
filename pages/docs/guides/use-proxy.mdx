@@ -41,7 +41,7 @@ This guide works with the MCD Dai [0.2.17 Kovan Release](https://changelog.maker
 
 Export the below environmental variables in your terminal:
 
-```
+```bash
 export PROXY_REGISTRY=0x64a436ae831c1672ae81f674cab8b6775df3475c
 export OASIS_DIRECT_PROXY=0xEE419971E63734Fed782Cfe49110b1544ae8a773
 export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
@@ -82,17 +82,19 @@ First you need to set up a DSProxy contract for your wallet. Or retrieve the add
 
 Execute the command below to verify if you have a proxy contract:
 
-`seth call $PROXY_REGISTRY 'proxies(address)(address)' $ETH_FROM`
-
-If the output is an address (for instance
-
+```bash
+seth call $PROXY_REGISTRY 'proxies(address)(address)' $ETH_FROM`
 ```
+
+If the output is an address (for instance)
+
+```bash
 3704fa2f6234ad5f2da063121496003e999c5312
 ```
 
-), then this address is your proxy contract. If you get an output like this:
+then this address is your proxy contract. If you get an output like this:
 
-```
+```bash
 
 0000000000000000000000000000000000000000
 
@@ -102,11 +104,15 @@ then you don’t have one.
 
 In case you don’t have the proxy contract, you can set it up through the below command:
 
-`seth send $PROXY_REGISTRY 'build()'`
+```bash
+seth send $PROXY_REGISTRY 'build()'
+```
 
 Now to see your proxy contract address, execute the above command that verifies if you have a proxy address. After executing it. Store your proxy address in an env variable.
 
-`export MYPROXY=$(seth call $PROXY_REGISTRY 'proxies(address)(address)' $ETH_FROM)`
+```bash
+export MYPROXY=$(seth call $PROXY_REGISTRY 'proxies(address)(address)' $ETH_FROM)
+```
 
 ## Oasis Direct Proxy Functions
 
@@ -137,11 +143,15 @@ Below is an example of how to do it:
 
 **Approve Dai in MYPROXY:**
 
-`seth send $DAI 'approve(address,uint256)' $MYPROXY $(seth --to-bytes32 $(mcd --to-hex -1))`
+```bash
+seth send $DAI 'approve(address,uint256)' $MYPROXY $(seth --to-bytes32 $(mcd --to-hex -1))
+```
 
 **Approve WETH in MYPROXY:**
 
-`seth send $WETH 'approve(address,uint256)' $MYPROXY $(seth --to-bytes32 $(mcd --to-hex -1))`
+```bash
+seth send $WETH 'approve(address,uint256)' $MYPROXY $(seth --to-bytes32 $(mcd --to-hex -1))
+```
 
 With DS-Proxy you only have to approve the token contracts once in order to carry as many trades as you want. This is the benefit of using such contract.
 
@@ -167,13 +177,15 @@ Before executing the function to the proxy contract, you need to build the calld
 
 **Set the buyAmt parameter to 3 Dai:**
 
-`export buyAmt=$(seth --to-uint256 $(seth --to-wei 3 eth))`
+```bash
+export buyAmt=$(seth --to-uint256 $(seth --to-wei 3 eth))
+```
 
 ‘eth’ in the `seth --to-wei 3 eth` command refers to the ETH conversion unit. It adds 18 zeros to 3. Converting it to the wei format.
 
 **Set the calldata:**
 
-```
+```bash
 export calldata=$(seth calldata 'buyAllAmountPayEth(address,address,uint,address)' $OTC $DAI $buyAmt $WETH)
 ```
 
@@ -181,7 +193,9 @@ export calldata=$(seth calldata 'buyAllAmountPayEth(address,address,uint,address
 
 To execute the **buyAllAmountPayEth** function, you need to send a transaction to your proxy contract by calling the execute function and adding the Oasis Direct Proxy contract address and calldata as parameters. Depending on the function, you might send ETH as well. In our case, you are sending 0.05 ETH to the contract for purchasing Dai.
 
-`seth send $MYPROXY 'execute(address, bytes memory)' $OASIS_DIRECT_PROXY $calldata --value $(seth --to-wei 0.05 eth)`
+```bash
+seth send $MYPROXY 'execute(address, bytes memory)' $OASIS_DIRECT_PROXY $calldata --value $(seth --to-wei 0.05 eth)
+```
 
 [This](https://kovan.etherscan.io/tx/0xd24d388f61b86d3a726df99231d71fae94e0b7c711a43b5f963ada5ba73cba6b) is an example of a successful transaction.  
 If you look closely, you’ll notice that that the user sent more ETH than was necessary to the marketplace. For getting 3 Dai he paid 0.037974683544303797 ETH and the rest was returned back to his wallet. This is special to this marketplace function. You define the exact number of Dai you want to receive. Depending on the market liquidity, you might spend more or less ETH for the Dai. So, in your case he bought Dai at the ~ 79 ETH/DAI price.
