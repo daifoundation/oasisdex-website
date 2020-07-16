@@ -58,7 +58,7 @@ const DocsLayout = ({ children }) => {
       </Head>
       <Container my={[3, 5]}>
         <Grid columns={[1, '250px 1fr']} sx={{ alignItems: 'flex-start' }}>
-          <Grid gap="1"> 
+          <Grid gap="1">
             {NAV_ITEMS.map(({ name, items }, index) => (
               <React.Fragment key={index}>
                 <Text
@@ -97,6 +97,13 @@ const DocsLayout = ({ children }) => {
               // Omit margin top of first element from mdx file
               '& > *:first-of-type': {
                 mt: 0,
+              },
+              'h1 .header-link, h2 .header-link, h3 .header-link, h4 .header-link, h5 .header-link, h6 .header-link': {
+                display: 'none',
+                fontStyle: 'italic',
+              },
+              'h1:hover .header-link, h2:hover .header-link, h3:hover .header-link, h4:hover .header-link, h5:hover .header-link, h6:hover .header-link': {
+                display: 'inline',
               },
             }}
           >
