@@ -16,23 +16,17 @@ import { Image } from 'theme-ui';
 
 ## **Matching Market**
 
-[The Matching Market](https://github.com/daifoundation/maker-otc/blob/master/src/matching_market.sol)
-is an extention of the [Expiring Market](https://github.com/daifoundation/maker-otc/blob/master/src/expiring_market.sol)
-which is an extention of the [Simple Market](https://github.com/daifoundation/maker-otc/blob/master/src/simple_market.sol).
-It leverages the power of the matching engine and adds some new events.
+[MatchingMarket](https://github.com/daifoundation/maker-otc/blob/master/src/matching_market.sol) extends [ExpiringMarket](https://github.com/daifoundation/maker-otc/blob/master/src/expiring_market.sol) which, in turn, extends [SimpleMarket](https://github.com/daifoundation/maker-otc/blob/master/src/simple_market.sol). The base contract, SimpleMarket, provides simple storage for orders and basic order execution and settlement logic. MatchingMarket implements sorted order book by providing additional sorting structure (double-linked list). For a given market (e.g. WETH/DAI) two separate linked-lists will be used by the matching logic, one for the "buy side" and another one for the "sell side". When a new order is created, MatchingMarket will check the opposing side of the order book and if the order can be matched, it will trigger the trade. Otherwise the order will be put in the appropriate place on the order book.
 
 ### **Orderbook Navigation**
 
-Those methods give the ability to navigate throughout the order book.
-The order book is implemented as a double-linked sorted list and at any time the list should be sorted.
-It has two sides. One of the sides contains all buy offers which are called _bids_ and the other side contains
-all of the sell orders which are called `asks`
+Each order on the OasisDEX indicates Market Maker’s intent to sell certain amount of tokens (`pay_gem`) for a given amount of other tokens (`buy_gem`). For a given market (e.g. WETH/DAI, where WETH is a base token and DAI is a quote token), a "sell-side" order book will contain orders to sell WETH with DAI as payment, whereas "buy-side" order book will contain orders to sell DAI with WETH as payment. For convenience, if we assume that WETH is a base token, sell orders are called "asks", while WETH buy orders (i.e. DAI sell orders) are called "bids".
 
-#### **Get Best Offer**
+#### **getBestOffer**
 
-Used to get the best offer for a given token pair.
+This method is used to get the best sell order for a given token pair.
 
-Given the following market _WETH/DAI_, if _WETH_'s address is passed as a _pay_gem_ then the id of the best _ask_ will be returned. If _DAI_'s address is passed as a _pay_gem_ then the id of the best _bid_ will be returned.
+Given the _WETH/DAI_ market, if _WETH_'s address is passed as a _pay_gem_ then the id of the best _ask_ will be returned. If _DAI_'s address is passed as a _pay_gem_ then the id of the best _bid_ will be returned.
 
 This method is used in combination with _getWorseOffer / getBetterOffer_.
 
@@ -71,10 +65,10 @@ const bestOfferId = await otcContract.getBestOffer(WETH, DAI)
 console.log(bestOfferId.toString()) // 118172
 ```
 
-#### **Get Worse Offer**
+#### **getWorseOffer**
 
-Used to get the next worse offer in the sorted linked list. If the offer which _id_ is used in the method call is an _ask_ one then a worse offer will have higher price.
-If the current offer is a `bid` one then a worse offer will have lower price
+This method is used to get the next offer in the sorted linked list. If the offer passed as the argument to the call is an _ask_, then the offer returned will have higher price.
+If the current offer is a `bid`, then the offer returned will have lower price.
 
 ```solidity
 function getWorseOffer(uint id) public view returns(uint)
@@ -112,10 +106,10 @@ const worseOfferId = await otcContract.getWorseOffer(bestOfferId)
 console.log(worseOfferId.toString()) // 13
 ```
 
-#### **Get Better Offer**
+#### **getBetterOffer**
 
-Used to get the next better offer in the sorted linked list. If the offer which _id_ is used in the method call is an `ask` one then a better offer will have lower price.
-If the current offer is a `bid` one then a better offer will have higher price
+This method is used to get the next offer in the sorted linked list. If the offer passed as the argument to the call is an _ask_, then the offer returned will have lower price.
+If the current offer is a `bid`, then the offer returned will have higher price.
 
 ```solidity
 function getBetterOffer(uint id) public view returns(uint)
@@ -151,10 +145,10 @@ const betterOfferId = await otcContract.getBetterOffer(currentOfferId)
 console.log(betterOfferId.toString())
 ```
 
-#### **Get Offer Count**
+#### **getOfferCount**
 
-Used to get the amount of offers for a given side of the order book.
-Given the following market _WETH/DAI_, if _WETH_'s address is passed as a _pay_gem_ then the size of the _asks_ is returned. If _DAI_'s address is passed as a _pay_gem_ then the size of the _bids_ is returned.
+This method is used to get the amount of offers for a given side of the order book.
+Given the _WETH/DAI_ market, if _WETH_'s address is passed as a _pay_gem_ then the number of the _asks_ is returned. If _DAI_'s address is passed as a _pay_gem_ then the number of the _bids_ is returned.
 
 ```solidity
 function getOfferCount(ERC20 pay_gem, ERC20 buy_gem) public view returns(uint)
@@ -195,12 +189,11 @@ const bidsSize = await otcContract.getOfferCount(DAI, WETH)
 console.log(`Asks Size: ${asksSize.toString()}`, `Bid Size: ${bidsSize.toString()}`) // Ask Size: 14, Bids Size: 1
 ```
 
-#### **Get Offer**
+#### **getOffer**
 
-Used to retrieve offer details for a specific offer id.
-It's important to understand that there is no price value stored in the offer's data.
-Price is determined by dividing token amounts.
-If the offer is an _ask_ then the price is calculated _buy_amt/pay_amt_ and if the offer is _bid_ then the price is _pay_amt/buy_amt_.
+This method is used to retrieve offer details for a specific offer id.
+Price of the order is determined by specified _pay_amt_ and _buy_amt_.
+If the offer is an _ask_ then _price_ = _buy_amt/pay_amt_, while if the offer is a _bid_ then _price_ = _pay_amt/buy_amt_.
 
 ```solidity
 function getOffer(uint id) public view returns (uint, ERC20, uint, ERC20)
@@ -211,11 +204,11 @@ function getOffer(uint id) public view returns (uint, ERC20, uint, ERC20)
 
   _pay_amt_ - amount to sell
 
-  _pay_gem_ - token that sells
+  _pay_gem_ - token that is sold
 
-  _buy_amt_ - amount to buy
+  _buy_amt_ - amount to pay
 
-  _buy_gem_ - token that buys
+  _buy_gem_ - token that is used as payment
 
 **Seth:**
 
@@ -263,7 +256,7 @@ console.log(price.toString())
 
 **Note**: Before making any offers, make sure to approve the contract to make transfers on your behalf.
 
-#### **Offer**
+#### **offer**
 
 There are couple of implementation of the _offer_ method. Each implementation is used for different cases.
 
@@ -384,9 +377,9 @@ the transaction will revert. Those methods are the **RECOMMENDED** way to take o
 
 **Get Pay Amount** and **Get Buy Amount** are helper methods that are used in combination with **Buy All Amount** and **Sell All Amount** ones.
 
-#### **Sell All Amount**
+#### **sellAllAmount**
 
-Used to exchange ERC20 tokens, where the payAmt is sent to the matching market from the caller.
+This method is used to exchange ERC20 tokens, where the payAmt is sent to the matching market from the caller.
 This method attempts to spend all of the pay tokens to buy a specified minimum amount of buy tokens.
 It is possible for more tokens to be bought (depends on token price volatility and specified payAmt).
 Transaction will fail if the method call determines that the caller will receive less amount than the amount specified as _min_fill_amount_.
@@ -462,9 +455,9 @@ const min_fill_amt = ethers.utils.parseUnits("16.34", 18) // 5% slippage added
 await otcContract.functions.sellAllAmount(pay_gem, buy_amt, buy_gem, min_fill_amt)
 ```
 
-#### **Buy All Amount**
+#### **buyAllAmount**
 
-Used to exchange ERC20 tokens. where the buyAmt is sent to the matching market from the caller.
+This method is used to exchange ERC20 tokens. where the buyAmt is sent to the matching market from the caller.
 This method attemps to buy a specified amount of buy tokens for a specified amount of pay tokens (up to a certain price).
 It will calculate the amount to be paid, then that amount is transferred to this matching market.
 It is possible for more tokens to be paid (depends on token price volatility and specified payAmt).
@@ -541,7 +534,7 @@ const max_fill_amt = ethers.utils.parseUnits("25.83", 18) // 5% slippage added
 await otcContract.functions.buyAllAmount(buy_gem, buy_amt, pay_gem, max_fill_amt)
 ```
 
-#### **Get Buy Amount**
+#### **getBuyAmount**
 
 This function is used to get the _buy_ amount and will return how much of the collateral token can be bought by paying the specified _pay_amt_.
 Its purpose is to retrieve the best offer for the token pair.
@@ -597,7 +590,7 @@ const fill_amt =  await otcContract.functions.getBuyAmount(buy_gem, pay_gem, pay
 console.log(ethers.utils.formatEther(fill_amt.toString())) // 17.2
 ```
 
-#### **Get Pay Amount**
+#### **getPayAmount**
 
 This function is used to get the _pay_ amount and will return how much of the collateral token is needed in order to buy the specified _buy_amt_.
 This also tries to retrieve the best offer for the token pair.
@@ -652,7 +645,7 @@ const fill_amt = await otcContract.functions.getPayAmount(pay_gem,buy_gem, buy_a
 console.log(ethers.utils.formatEther(fill_amt.toString())) // 24.8
 ```
 
-#### **Buy**
+#### **buy**
 
 The buy function is used to fill a specific order (“cherrypicks”). By calling this function, it will execute and settle a trade all within one atomic transaction.
 It will transfers funds from caller to offer maker, and from maker (escrow) to caller.
@@ -695,9 +688,9 @@ const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer);
 await otcContract.functions.buy(118257, ethers.utils.parseUnits("2", 18))
 ```
 
-#### **Take**
+#### **take**
 
-This is the _byte32_ version of the **Buy** function.
+This is the _byte32_ version of the **buy** function.
 
 ```solidity
 function take(bytes32 id, uint128 maxTakeAmount) public
@@ -711,9 +704,9 @@ function take(bytes32 id, uint128 maxTakeAmount) public
 
 Methods that can be called by an offer's owner.
 
-#### **Cancel**
+#### **cancel**
 
-Used to cancel an offer with specific id placed by the caller.
+This method is used to cancel an offer created in the past by the caller. It will transfer funds from the escrow back to the caller.
 
 ```solidity
 function cancel(uint id) public can_cancel(id) synchronized returns (bool success)
@@ -747,9 +740,9 @@ const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer);
 otcContract.functions.cancel(118281)
 ```
 
-#### **Kill**
+#### **kill**
 
-This is the _byte32_ version of the **Cancel** function.
+This is the _byte32_ version of the **cancel** function.
 
 ```solidity
 function kill(bytes32 id) public
