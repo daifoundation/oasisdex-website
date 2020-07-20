@@ -65,7 +65,7 @@ const bestOfferId = await otcContract.getBestOffer(WETH, DAI)
 console.log(bestOfferId.toString()) // 118172
 ```
 
-#### **getWorseOffer(ERC20, ERC20)**
+#### **getWorseOffer(uint)**
 
 This method is used to get the next offer in the sorted linked list. If the offer passed as the argument to the call is an _ask_, then the offer returned will have higher price.
 If the current offer is a `bid`, then the offer returned will have lower price.
@@ -411,9 +411,8 @@ await otcContract.functions.buy(118257, ethers.utils.parseUnits("2", 18))
 
 #### **sellAllAmount(ERC20, uint, ERC20, uint)**
 
-This method is used to exchange ERC20 tokens, where the payAmt is sent to the matching market from the caller.
-This method attempts to spend all of the pay tokens to buy a specified minimum amount of buy tokens.
-It is possible for more tokens to be bought (depends on token price volatility and specified payAmt).
+This method attempts to exchange all of the `pay_gem` tokens for at least the specified amount of `buy_gem` tokens.
+It is possible that more tokens will be bought (depending on the current state of the orderbook).
 Transaction will fail if the method call determines that the caller will receive less amount than the amount specified as _min_fill_amount_.
 
 ```solidity
@@ -428,14 +427,14 @@ function sellAllAmount(ERC20 pay_gem, uint pay_amt, ERC20 buy_gem, uint min_fill
   In order to avoid big losses the caller should provide threshold.
 - **RETURN**: - An amount that has been received in exchange for _pay_amt_
 
-**Example**: Let's assume this bid side of the _WETH/DAI_ orderbook:
+**Example**: Let's assume the bid side of the _WETH/DAI_ orderbook:
 
 - **buy_amt**: 0.2 WETH, **pay_amt**: 4 DAI (**price**: 20 DAI)
 - **buy_amt**: 0.2 WETH, **pay_amt**: 3.6 DAI (**price**: 18 DAI)
 - **buy_amt**: 0.6 WETH, **pay_amt**: 7.6 DAI (**price**: 16 DAI)
 - **buy_amt**: 1.0 WETH, **pay_amt**: 10.0 DAI (**price**: 10 DAI)
 
-If the user wanted to sell **1 WETH** they would receive 15.2 DAI. This could be specific as `min_fill_amount` value, however as the orderbook might change before this order is mined (and executed), the user could specify the additional slippage and set `min_fill_amount` value to 14.44 DAI (5% slippage). This will improve the chance of the order being executed, hovewer it will increase the likelihood of being frontrun by market making bots.
+If the user wanted to sell **1 WETH** they would receive 15.2 DAI. To guarantee this amount, the user could specify `min_fill_amount` value. As the orderbook might change before this order is mined (and executed), the additional slippage can be taken into account and `min_fill_amount` value can be set to 14.44 DAI (5% slippage). This will improve the chance of the order being executed, hovewer it will increase the likelihood of being frontrun by market making bots.
 
 **Seth:**
 
@@ -478,11 +477,9 @@ await otcContract.functions.sellAllAmount(pay_gem, buy_amt, buy_gem, min_fill_am
 
 #### **buyAllAmount(ERC20, uint, ERC20, uint)**
 
-This method is used to exchange ERC20 tokens. where the buyAmt is sent to the matching market from the caller.
-This method attemps to buy a specified amount of buy tokens for a specified amount of pay tokens (up to a certain price).
-It will calculate the amount to be paid, then that amount is transferred to this matching market.
-It is possible for more tokens to be paid (depends on token price volatility and specified payAmt).
-Transaction will fail if the method call determines that the caller will pay higher amount than the amount specified as _max_fill_amount_.
+This method attempts to exchange at most specified amount of `pay_gem` tokens for a specified amount of `buy_gem` tokens.
+It is possible that less tokens will be spent (depending on the current state of the orderbook).
+Transaction will fail if the method call determines that the caller will pay more than the amount specified as `max_fill_amount`.
 
 ```solidity
 function buyAllAmount(ERC20 buy_gem, uint buy_amt, ERC20 pay_gem, uint max_fill_amount) public returns (uint fill_amt)
@@ -496,25 +493,14 @@ function buyAllAmount(ERC20 buy_gem, uint buy_amt, ERC20 pay_gem, uint max_fill_
   In order to avoid big losses the caller should provide threshold.
 - **RETURN**: - An amount that has been paid for _buy_amt_
 
-**Use case**: Given the _WETH/DAI_ Market. _Ask_ side of the order book looks like as follow:
+**Example**: Let's assume this ask side of the _WETH/DAI_ orderbook:
 
-- **price**: 30 DAI, **amount**: 1.0 WETH, **total**: 30 DAI
-- **price**: 26 DAI, **amount**: 0.6 WETH, **total**: 15.6 DAI
-- **price**: 24 DAI, **amount**: 0.2 WETH, **total**: 4.8 DAI
-- **price**: 22 DAI, **amount**: 0.2 WETH, **total**: 4.4 DAI
+- **pay_amt**: 1.0 WETH, **buy_amt**: 30 DAI (**price**: 30 DAI)
+- **pay_amt**: 0.6 WETH, **buy_amt**: 15.6 DAI (**price**: 26 DAI)
+- **pay_amt**: 0.2 WETH, **buy_amt**: 4.8 DAI (**price**: 24 DAI)
+- **pay_amt**: 0.2 WETH, **buy_amt**: 4.4 DAI (**price**: 22 DAI)
 
-  As an user I would like to buy **1 WETH**.
-
-  Given the current state of the orderbook the average price at which **1 WETH** will be bought is **24.6 DAI**.
-
-  While order mining, someone else might sign similar order, the _makers_ of the first 3 orders
-  might decide to cancel them, some of those orders might be filled, new orders might be added.
-  At the end of transaction the price at which **1 WETH** is bought might differ significantly.
-
-  As an user I anticipate slippage and add 5% on the final price.
-  Worst price that could be possibly applied and still have the transaction successful is **25.83 DAI**.
-
-  **25.83 DAI** will be used as _max_fill_amount_ value. If the price goes above that number during transaction execution it will fail.
+If the user wanted to buy exactly **1 WETH** they would have to pay 24.8 DAI. To guarantee this amount, the user could specify `max_fill_amount` value. As the orderbook might change before this order is mined (and executed), the additional slippage can be taken into account and `max_fill_amount` value can be set to 26.04 DAI (5% slippage). This will improve the chance of the order being executed, hovewer it will increase the likelihood of being frontrun by market making bots.
 
 **Seth:**
 
@@ -550,15 +536,14 @@ const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer);
 const pay_gem = DAI
 const buy_amt = ethers.utils.parseUnits("1", 18)
 const buy_gem = WETH
-const max_fill_amt = ethers.utils.parseUnits("25.83", 18) // 5% slippage added
+const max_fill_amt = ethers.utils.parseUnits("26.04", 18) // 5% slippage added
 
 await otcContract.functions.buyAllAmount(buy_gem, buy_amt, pay_gem, max_fill_amt)
 ```
 
 #### **getBuyAmount(ERC20, uint, ERC20, uint)**
 
-This function is used to get the _buy_ amount and will return how much of the collateral token can be bought by paying the specified _pay_amt_.
-Its purpose is to retrieve the best offer for the token pair.
+This function returns amount of `buy_gem` tokens if `pay_gem` tokens are spent. It can be used to check the current state of the orderbook.
 
 ```solidity
 function getBuyAmount(ERC20 buy_gem, ERC20 pay_gem, uint pay_amt) public view returns (uint fill_amt)
@@ -613,8 +598,7 @@ console.log(ethers.utils.formatEther(fill_amt.toString())) // 17.2
 
 #### **getPayAmount(ERC20, uint, ERC20, uint)**
 
-This function is used to get the _pay_ amount and will return how much of the collateral token is needed in order to buy the specified _buy_amt_.
-This also tries to retrieve the best offer for the token pair.
+This function returns amount of `pay_gem` tokens that need to be spent to buy specified amount of `buy_gem`. It can be used to check the current state of the orderbook.
 
 ```solidity
 function getPayAmount(ERC20 pay_gem, ERC20 buy_gem, uint buy_amt) public view returns (uint fill_amt)
