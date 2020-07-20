@@ -5,18 +5,24 @@ export const TabItem = ({ children }) => {
   return <Box>{children}</Box>;
 };
 
-const DEFAULT_SYNTAX_VALUES = [
-  { label: 'Seth', value: 'seth' },
-  { label: 'Ethers JS (v5)', value: 'ethersjs' },
-];
+const DEFAULT_LABELS = {
+  seth: 'Seth',
+  ethersjs: 'Ethers JS (v5)',
+};
 
-export const Tabs = ({ children, defaultValue, values }) => {
-  const [selectedValue, setSelectedValue] = useState(defaultValue);
+export const SyntaxTabs = ({ children }) => {
+  const [selectedValue, setSelectedValue] = useState(
+    Children.toArray(children)[0].props.value
+  );
 
   return (
     <Box>
       <Flex sx={{ alignItems: 'center' }}>
-        {values.map(({ label, value }) => {
+        {Children.toArray(children).map(({ props: { value } }) => {
+          const label = DEFAULT_LABELS[value];
+          if (!label) {
+            throw new Error(`Unexpected value ${value}, couldn't find label`);
+          }
           const activeStyles = {
             color: 'primary',
             '&:before': {
@@ -60,9 +66,3 @@ export const Tabs = ({ children, defaultValue, values }) => {
     </Box>
   );
 };
-
-export const SyntaxTabs = ({
-  children,
-  defaultValue = 'seth',
-  values = DEFAULT_SYNTAX_VALUES,
-}) => <Tabs {...{ defaultValue, values }}>{children}</Tabs>;

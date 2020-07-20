@@ -1,5 +1,7 @@
-import DocsLayout from '../../../layouts/DocsLayout';
 import { Image } from 'theme-ui';
+
+import DocsLayout from '../../../layouts/DocsLayout';
+import { SyntaxTabs, TabItem } from '../../../components/Tabs';
 
 <DocsLayout>
 
@@ -38,18 +40,20 @@ function getBestOffer(ERC20 pay_gem, ERC20 buy_gem) public view returns(uint)
 - **buy_gem**: An address of an ERC20 token contract
 - **RETURN**: Id(number) of the best offer for **pay_gem:buy_gem** pair.
 
-**Seth:**
+<SyntaxTabs>
+   <TabItem value="seth">
 
 ```bash
 export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
 export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
 export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
 
-$ seth --to-dec $(seth call $OTC_MARKET 'getBestOffer(address,address)' $WETH $DAI)
+$ seth --to-dec $(seth call $OTC_MARKET 'getBestOffer(address,address)' $WETH \$DAI)
 118172
 ```
 
-**Ethers JS (v5):**
+  </TabItem>
+  <TabItem value="ethersjs">
 
 ```javascript
 const OTC_ABI = //otc contract abi defined
@@ -65,6 +69,9 @@ const bestOfferId = await otcContract.getBestOffer(WETH, DAI)
 console.log(bestOfferId.toString()) // 118172
 ```
 
+  </TabItem>
+</SyntaxTabs>
+
 #### **getWorseOffer(uint)**
 
 This method is used to get the next offer in the sorted linked list. If the offer passed as the argument to the call is an _ask_, then the offer returned will have higher price.
@@ -77,7 +84,8 @@ function getWorseOffer(uint id) public view returns(uint)
 - **id**: Id of an offer compareted to which a worse offer will be returned
 - **RETURN**: Id(number) of a worse offer
 
-**Seth:**
+<SyntaxTabs>
+   <TabItem value="seth">
 
 ```bash
 export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
@@ -90,7 +98,8 @@ $ seth --to-dec $(seth call $OTC_MARKET 'getWorseOffer(uint)' $BEST_OFFER_ID)
 13
 ```
 
-**Ethers JS (v5):**
+  </TabItem>
+  <TabItem value="ethersjs">
 
 ```javascript
 const OTC_ABI = //otc contract abi defined
@@ -106,6 +115,9 @@ const worseOfferId = await otcContract.getWorseOffer(bestOfferId)
 console.log(worseOfferId.toString()) // 13
 ```
 
+  </TabItem>
+</SyntaxTabs>
+
 #### **getBetterOffer(uint)**
 
 This method is used to get the next offer in the sorted linked list. If the offer passed as the argument to the call is an _ask_, then the offer returned will have lower price.
@@ -118,7 +130,8 @@ function getBetterOffer(uint id) public view returns(uint)
 - **id**: Id of an offer compareted to which a worse offer will be returned
 - **RETURN**: Id(number) of a better offer
 
-**Seth:**
+<SyntaxTabs>
+   <TabItem value="seth">
 
 ```bash
 export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
@@ -130,7 +143,8 @@ $ seth --to-dec $(seth call $OTC_MARKET 'getBetterOffer(uint)' 13)
 
 ```
 
-**Ethers JS (v5):**
+  </TabItem>
+  <TabItem value="ethersjs">
 
 ```javascript
 const OTC_ABI = //otc contract abi defined
@@ -145,6 +159,9 @@ const betterOfferId = await otcContract.getBetterOffer(currentOfferId)
 console.log(betterOfferId.toString())
 ```
 
+  </TabItem>
+</SyntaxTabs>
+
 #### **getOfferCount(ERC20, ERC20)**
 
 This method is used to get the amount of offers for a given side of the order book.
@@ -158,7 +175,8 @@ function getOfferCount(ERC20 pay_gem, ERC20 buy_gem) public view returns(uint)
 - **buy_gem**: An address of an ERC20 token contract
 - **RETURN**: Size(number) either of all `asks` or all `bids`.
 
-**Seth:**
+<SyntaxTabs>
+   <TabItem value="seth">
 
 ```bash
 export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
@@ -174,7 +192,8 @@ $ seth --to-dec $(seth call $OTC_MARKET 'getOfferCount(address,address)' $DAI $W
 1
 ```
 
-**Ethers JS (v5):**
+  </TabItem>
+  <TabItem value="ethersjs">
 
 ```javascript
 const OTC_ABI = //otc contract abi defined
@@ -188,6 +207,9 @@ const asksSize = await otcContract.getOfferCount(WETH, DAI)
 const bidsSize = await otcContract.getOfferCount(DAI, WETH)
 console.log(`Asks Size: ${asksSize.toString()}`, `Bid Size: ${bidsSize.toString()}`) // Ask Size: 14, Bids Size: 1
 ```
+
+  </TabItem>
+</SyntaxTabs>
 
 #### **getOffer(uint)**
 
@@ -210,7 +232,8 @@ function getOffer(uint id) public view returns (uint, ERC20, uint, ERC20)
 
   _buy_gem_ - token that is used as payment
 
-**Seth:**
+<SyntaxTabs>
+   <TabItem value="seth">
 
 ```solidity
 export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
@@ -230,7 +253,8 @@ $ seth --from-wei $(seth --to-dec ebec21ee1da40000)
 17.000000000000000000
 ```
 
-**Ethers JS (v5):**
+  </TabItem>
+  <TabItem value="ethersjs">
 
 ```javascript
 const OTC_ABI = //otc contract abi defined
@@ -251,6 +275,9 @@ console.log(ethers.utils.formatEther(buy_amt)) // 17.00
 const price = buy_amt.div(pay_amt)
 console.log(price.toString())
 ```
+
+  </TabItem>
+</SyntaxTabs>
 
 ### **Placing orders (Market Makers)**
 
@@ -295,7 +322,8 @@ Providing `pos` that is exactly correct is challening due to the various factors
 
 The default rounding behaviour will match offers that differ in the price indicated by taker by 1 WEI. If this is not desirable `offer` function with additional parameter `rounding` set to `false` should be used instead.
 
-**Ethers JS (v5):**
+<SyntaxTabs>
+  <TabItem value="ethersjs">
 
 ```javascript
 const OTC_ABI = //otc contract abi defined
@@ -325,6 +353,9 @@ console.log(price.toString()) // 12
 // Using 118282 because it's the first offer that has higher price than the new one
 const tx = await otcContract.functions['offer(uint256,address,uint256,address,uint256)'](pay_amt, pay_gem, buy_amt, buy_gem, 118282)
 ```
+
+  </TabItem>
+</SyntaxTabs>
 
 #### **offer(uint, ERC20, uint, ERC20, uint, bool)**
 
@@ -380,7 +411,8 @@ function buy(uint id, uint amount) public can_buy(id) synchronized returns (bool
 - **amount**: Amount that the user is willing to fill. Could be partial or full amount.
 - **RETURN**: Boolean result whether the transaction was successful
 
-**Seth:**
+<SyntaxTabs>
+   <TabItem value="seth">
 
 ```bash
 export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
@@ -390,7 +422,8 @@ export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
 $ seth send $OTC_MARKET 'buy(uint,uint)' 118282 $(seth --to-uint256 $(seth --to-wei 3 ether))
 ```
 
-**Ethers JS (v5):**
+  </TabItem>
+  <TabItem value="ethersjs">
 
 ```javascript
 const OTC_ABI = //otc contract abi defined
@@ -408,6 +441,9 @@ const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer);
 // 118257 0.2 (WETH) 2 DAI
 await otcContract.functions.buy(118257, ethers.utils.parseUnits("2", 18))
 ```
+
+  </TabItem>
+</SyntaxTabs>
 
 #### **sellAllAmount(ERC20, uint, ERC20, uint)**
 
@@ -436,7 +472,8 @@ function sellAllAmount(ERC20 pay_gem, uint pay_amt, ERC20 buy_gem, uint min_fill
 
 If the user wanted to sell **1 WETH** they would receive 15.2 DAI. To guarantee this amount, the user could specify `min_fill_amount` value. As the orderbook might change before this order is mined (and executed), the additional slippage can be taken into account and `min_fill_amount` value can be set to 14.44 DAI (5% slippage). This will improve the chance of the order being executed, hovewer it will increase the likelihood of being frontrun by market making bots.
 
-**Seth:**
+<SyntaxTabs>
+   <TabItem value="seth">
 
 ```bash
 export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
@@ -446,7 +483,8 @@ export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
 $ seth send $OTC_MARKET 'sellAllAmount(address,uint,address,uint)' $WETH $(seth --to-uint256 $(seth --to-wei 1 ether)) $DAI $(seth --to-uint256 $(seth --to-wei 17.2 ether))
 ```
 
-**Ether Js (v5):**
+  </TabItem>
+  <TabItem value="ethersjs">
 
 ```javascript
 const OTC_ABI = //otc contract abi defined
@@ -475,6 +513,9 @@ const min_fill_amt = ethers.utils.parseUnits("14.44", 18) // 5% slippage added
 await otcContract.functions.sellAllAmount(pay_gem, buy_amt, buy_gem, min_fill_amt)
 ```
 
+  </TabItem>
+</SyntaxTabs>
+
 #### **buyAllAmount(ERC20, uint, ERC20, uint)**
 
 This method attempts to exchange at most specified amount of `pay_gem` tokens for a specified amount of `buy_gem` tokens.
@@ -502,7 +543,8 @@ function buyAllAmount(ERC20 buy_gem, uint buy_amt, ERC20 pay_gem, uint max_fill_
 
 If the user wanted to buy exactly **1 WETH** they would have to pay 24.8 DAI. To guarantee this amount, the user could specify `max_fill_amount` value. As the orderbook might change before this order is mined (and executed), the additional slippage can be taken into account and `max_fill_amount` value can be set to 26.04 DAI (5% slippage). This will improve the chance of the order being executed, hovewer it will increase the likelihood of being frontrun by market making bots.
 
-**Seth:**
+<SyntaxTabs>
+   <TabItem value="seth">
 
 ```bash
 export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
@@ -512,7 +554,8 @@ export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
 $ seth send $OTC_MARKET 'buyAllAmount(address,uint,address,uint)' $WETH $(seth --to-uint256 $(seth --to-wei 1 ether)) $DAI $(seth --to-uint256 $(seth --to-wei 25.83 ether))
 ```
 
-**Ether Js (v5):**
+  </TabItem>
+  <TabItem value="ethersjs">
 
 ```javascript
 const OTC_ABI = //otc contract abi defined
@@ -541,6 +584,9 @@ const max_fill_amt = ethers.utils.parseUnits("26.04", 18) // 5% slippage added
 await otcContract.functions.buyAllAmount(buy_gem, buy_amt, pay_gem, max_fill_amt)
 ```
 
+  </TabItem>
+</SyntaxTabs>
+
 #### **getBuyAmount(ERC20, uint, ERC20, uint)**
 
 This function returns amount of `buy_gem` tokens if `pay_gem` tokens are spent. It can be used to check the current state of the orderbook.
@@ -555,7 +601,8 @@ function getBuyAmount(ERC20 buy_gem, ERC20 pay_gem, uint pay_amt) public view re
 - **RETURN**: Amount of _buy_gem_ that the caller is going to receive for paying _pay_amt_ of _pay_gem_.
   If there are not enough orders to fill the amount it will fail
 
-**Seth:**
+<SyntaxTabs>
+   <TabItem value="seth">
 
 ```bash
 export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
@@ -567,7 +614,8 @@ $ seth --from-wei $(seth --to-dec $(seth call $OTC_MARKET 'getBuyAmount(address,
 17.200000000000000000
 ```
 
-**Ethers JS (v5):**
+  </TabItem>
+  <TabItem value="ethersjs">
 
 ```javascript
 const OTC_ABI = //otc contract abi defined
@@ -596,6 +644,9 @@ const fill_amt =  await otcContract.functions.getBuyAmount(buy_gem, pay_gem, pay
 console.log(ethers.utils.formatEther(fill_amt.toString())) // 17.2
 ```
 
+  </TabItem>
+</SyntaxTabs>
+
 #### **getPayAmount(ERC20, uint, ERC20, uint)**
 
 This function returns amount of `pay_gem` tokens that need to be spent to buy specified amount of `buy_gem`. It can be used to check the current state of the orderbook.
@@ -610,7 +661,8 @@ function getPayAmount(ERC20 pay_gem, ERC20 buy_gem, uint buy_amt) public view re
 - **RETURN**: Amount of _apy_gem_ that the caller is going to pay for receiving _buy_amt_ of _buy_gem_.
   If there are not enough orders to fill the amount it will fail
 
-**Seth:**
+<SyntaxTabs>
+   <TabItem value="seth">
 
 ```bash
 export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
@@ -621,7 +673,8 @@ $ seth --from-wei $(seth --to-dec $(seth call $OTC_MARKET 'getPayAmount(address,
 24.800000000000000000
 ```
 
-**Ethers JS (v5):**
+  </TabItem>
+  <TabItem value="ethersjs">
 
 ```javascript
 const OTC_ABI = //otc contract abi defined
@@ -650,6 +703,9 @@ const fill_amt = await otcContract.functions.getPayAmount(pay_gem,buy_gem, buy_a
 console.log(ethers.utils.formatEther(fill_amt.toString())) // 24.8
 ```
 
+  </TabItem>
+</SyntaxTabs>
+
 ### **Offer management**
 
 Methods that can be called by an offer's owner.
@@ -665,7 +721,8 @@ function cancel(uint id) public can_cancel(id) synchronized returns (bool succes
 - **id**: An id of the offer that needs to be cancelled
 - **RETURN**: Boolean result whether the transaction was successful
 
-**Seth:**
+<SyntaxTabs>
+   <TabItem value="seth">
 
 ```bash
 export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
@@ -673,7 +730,8 @@ export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
 $ seth send $OTC_MARKET 'cancel(uint)' 118283
 ```
 
-**Ethers JS (v5):**
+  </TabItem>
+  <TabItem value="ethersjs">
 
 ```javascript
 const OTC_ABI = //otc contract abi defined
@@ -690,4 +748,8 @@ const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer);
 otcContract.functions.cancel(118281)
 ```
 
+  </TabItem>
+</SyntaxTabs>
+
 </DocsLayout>
+````
