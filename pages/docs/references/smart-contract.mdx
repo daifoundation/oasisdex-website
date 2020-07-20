@@ -293,7 +293,7 @@ Providing `pos` that is exactly correct is challening due to the various factors
 
 ##### Rounding behaviour
 
-In case of rounding errors, this method will try to match orders that are "close enough" expected price.
+The default rounding behaviour will match offers that differ in the price indicated by taker by 1 WEI. If this is not desirable `offer` function with additional parameter `rounding` set to `false` should be used instead.
 
 **Ethers JS (v5):**
 
@@ -328,15 +328,7 @@ const tx = await otcContract.functions['offer(uint256,address,uint256,address,ui
 
 #### **offer(uint, ERC20, uint, ERC20, uint, bool)**
 
-Offer method with six arguments is the alternative, not recommended way of placing orders.
-
-Calling this method might have three outcomes:
-
-- Offer is not matched and is put into the order book - caller becomes Maker
-- Offer is fully matched - caller becomes Taker
-- Offer is partially matched - caller is both Maker and Taker. The remaining of the unfilled offer will be placed as a new order.
-
-When creating new offer, funds are transffered to the contract's escrow ensuring that settlement is always possible
+`offer` method with 6 arguments allows for explicit setting of the rounding behaviour. The default value is `true`. Setting `rounding` to false will not round the price of the orders.
 
 ```solidity
 function offer(uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem, uint pos, bool rounding) public can_offer returns (uint)
@@ -346,50 +338,76 @@ function offer(uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem, uint po
 - **pay_gem**: Address of an ERC20 token contract. Token that maker sells
 - **buy_amt**: Amount to sell. Number in _wei_ units.
 - **buy_gem**: Address of an ERC20 token contract. Token that maker buys
-- **pos**: Position where to insert the new offer. 0 should be used if unknown.
-- **rounding**: Boolean value whether "close enough" orders should be matched.
+- **pos**: Position where to insert the new offer. 0 should be used if unknown
+- **rounding**: Boolean value indicating whether "close enough" orders should be matched
 - **RETURN**: Id of the newly created offer.
 
 #### **offer(uint, ERC20, uint, ERC20)**
 
 This method IS NOT recommended and shouldn't be used. Such offer would not end up in the sorted list but would rather needed to be insterted by a keeper at a later date. There is no guarantee that this will ever happen.
 
-Insert method
+#### `insert(uint, unint)`
 
-Third of the implementations can be found [here](https://github.com/daifoundation/maker-otc/blob/master/src/simple_market.sol#L240).
+Inserts an unsorted offer to the sorted list. This method should only be used if an offer was created by `offer(uint, ERC20, uint, ERC20)` method that does not insert the offer into a sorted list automatically.
 
 ```solidity
-function offer(uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem) public can_offer synchronized returns (uint id)
+function insert(uint offerId, uint pos) public returns (bool)
 ```
 
-Calling this method will create a new offer by taking the funds from the caller and putting them into the market escrow
-
-- **pay_amt**: Amount that will be sold. Number in _wei_ units.
-- **pay_gem**: Address of an ERC20 token contract. Token that maker sells
-- **buy_amt**: Amount to sell. Number in _wei_ units.
-- **buy_gem**: Address of an ERC20 token contract. Token that maker buys
-- **RETURN**: Id of the newly created offer.
-
-This function **SHOULD NOT** be called. It was used before creating the matching engine and it doesn't take advantage of it.
-Placing an order using this function may cause you offer not being listed on the orderbook.
-
-#### **insert**
+- **offerId**: Id of an offer
+- **pos**: Position where to insert the new offer. 0 should be used if unknown
+- **RETURN**: Boolean result whether the operation was successful
 
 ### **Taking/Filling orders (Market Takers)**
 
 **Offer** method described in the _Placing orders_ section above could be used to take/fill orders.
-By placing a new order which fills completely or partially an existing one, the caller is partially or completely a _market taker_.
+By placing a new order which fills completely or partially an existing one, the caller is partially or completely a _market taker_. The `offer` method takes advantage of the automatic matching engine but it does not guarantee the caller of the method will always be a taker and their offer may end up resting on the orderbook, if it cannot be matched.
 
-**Buy** method that will be described in this section could be used for taking orders but it **SHOULD** be used with caution.
-This method could be used for gas optimization if the caller wants to fill partially or completely single order but it **DOES NOT** guarantee the best price.
-It **SHOULD BE USED WITH CAUTION**.
+Another method that the Taker can use is the `buy` method which fills a specific order (not necessarly the best one). This method can be used if the taker wants skip the matching (which will save gas) however, there is no best price guarantee, hence it should be used with caution.
 
-**Sell All Amount** and **Buy All Amount** described below are dedicated to Takers and works by executing a special type of order called **"Average Price fill-or-kill order"**.
-This order type is using the order book to calculate an average price with a threshold based on the amount the user wants to sell or buy.
-This order will never stay on the order book and if it cannot be matched (due to exceeding the gas block limit or by reaching the threshold),
-the transaction will revert. Those methods are the **RECOMMENDED** way to take orders.
+Finally, there are two additional methods (`sellAllAmount` and `buyAllAmount`) that provide fill or kill order semantics ie. the takers offer will be fully matched or it will revert.
 
-**Get Pay Amount** and **Get Buy Amount** are helper methods that are used in combination with **Buy All Amount** and **Sell All Amount** ones.
+#### **buy**
+
+The buy function is used to fill a specific order (“cherrypicks”). By calling this function, it will execute and settle a trade all within one atomic transaction.
+It will transfers funds from caller to offer maker, and from maker (escrow) to caller.
+
+```solidity
+function buy(uint id, uint amount) public can_buy(id) synchronized returns (bool)
+```
+
+- **id**: An id of the offer that the send is willing to fill
+- **amount**: Amount that the user is willing to fill. Could be partial or full amount.
+- **RETURN**: Boolean result whether the transaction was successful
+
+**Seth:**
+
+```bash
+export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
+
+# Orderbook (Bids)
+# 118282 0.2 (WETH) 3 DAI
+$ seth send $OTC_MARKET 'buy(uint,uint)' 118282 $(seth --to-uint256 $(seth --to-wei 3 ether))
+```
+
+**Ethers JS (v5):**
+
+```javascript
+const OTC_ABI = //otc contract abi defined
+
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
+const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+
+const provider = new ethers.providers.Web3Provider(window.ethereum)
+const signer = provider.getSigner()
+
+const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer);
+
+// Orderbook (Bids)
+// 118257 0.2 (WETH) 2 DAI
+await otcContract.functions.buy(118257, ethers.utils.parseUnits("2", 18))
+```
 
 #### **sellAllAmount**
 
@@ -410,25 +428,14 @@ function sellAllAmount(ERC20 pay_gem, uint pay_amt, ERC20 buy_gem, uint min_fill
   In order to avoid big losses the caller should provide threshold.
 - **RETURN**: - An amount that has been received in exchange for _pay_amt_
 
-**Use case**: Given the _WETH/DAI_ market. _Bids_ side of the order book looks like as follow:
+**Example**: Let's assume this bid side of the _WETH/DAI_ orderbook:
 
-- **price**: 20 DAI, **amount**: 0.2 WETH, **total**: 4 DAI
-- **price**: 18 DAI, **amount**: 0.2 WETH, **total**: 3.6 DAI
-- **price**: 16 DAI, **amount**: 0.6 WETH, **total**: 7.6 DAI
-- **price**: 10 DAI, **amount**: 1.0 WETH, **total**: 10.0 DAI
+- **buy_amt**: 0.2 WETH, **pay_amt**: 4 DAI (**price**: 20 DAI)
+- **buy_amt**: 0.2 WETH, **pay_amt**: 3.6 DAI (**price**: 18 DAI)
+- **buy_amt**: 0.6 WETH, **pay_amt**: 7.6 DAI (**price**: 16 DAI)
+- **buy_amt**: 1.0 WETH, **pay_amt**: 10.0 DAI (**price**: 10 DAI)
 
-  As an user I would like to sell **1 WETH**.
-
-  Given the current state of the orderbook the average price at which **1 WETH** will be sold is **17.2 DAI**.
-
-  While order mining, someone else might sign similar order, the _makers_ of the first 3 orders
-  might decide to cancel them, some of those orders might be filled, new orders might be added.
-  At the end of transaction the price at which **1 WETH** is sold might differ significantly.
-
-  As an user I anticipate slippage and add 5% on the final price.
-  Worst price that could be possibly applied and still have the transaction successful is **16.34 DAI**.
-
-  **16.34 DAI** will be used as _min_fill_amount_ value. If the price declines below that number during transaction execution it will fail.
+If the user wanted to sell **1 WETH** they would receive 15.2 DAI. This could be specific as `min_fill_amount` value, however as the orderbook might change before this order is mined (and executed), the user could specify the additional slippage and set `min_fill_amount` value to 14.44 DAI (5% slippage). This will improve the chance of the order being executed, hovewer it will increase the likelihood of being frontrun by market making bots.
 
 **Seth:**
 
@@ -464,7 +471,7 @@ const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer);
 const pay_gem = WETH
 const buy_amt = ethers.utils.parseUnits("1", 18)
 const buy_gem = DAI
-const min_fill_amt = ethers.utils.parseUnits("16.34", 18) // 5% slippage added
+const min_fill_amt = ethers.utils.parseUnits("14.44", 18) // 5% slippage added
 
 await otcContract.functions.sellAllAmount(pay_gem, buy_amt, buy_gem, min_fill_amt)
 ```
@@ -659,61 +666,6 @@ const fill_amt = await otcContract.functions.getPayAmount(pay_gem,buy_gem, buy_a
 console.log(ethers.utils.formatEther(fill_amt.toString())) // 24.8
 ```
 
-#### **buy**
-
-The buy function is used to fill a specific order (“cherrypicks”). By calling this function, it will execute and settle a trade all within one atomic transaction.
-It will transfers funds from caller to offer maker, and from maker (escrow) to caller.
-It is **NOT RECOMMENDED** to call this method directly as it may end up filling an order that is not the optimal one.
-
-```solidity
-function buy(uint id, uint amount) public can_buy(id) synchronized returns (bool)
-```
-
-- **id**: An id of the offer that the send is willing to fill
-- **amount**: Amount that the user is willing to fill. Could be partial or full amount.
-- **RETURN**: Boolean result whether the transaction was successful
-
-**Seth:**
-
-```bash
-export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
-
-# Orderbook (Bids)
-# 118282 0.2 (WETH) 3 DAI
-$ seth send $OTC_MARKET 'buy(uint,uint)' 118282 $(seth --to-uint256 $(seth --to-wei 3 ether))
-```
-
-**Ethers JS (v5):**
-
-```javascript
-const OTC_ABI = //otc contract abi defined
-
-const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
-const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
-const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
-
-const provider = new ethers.providers.Web3Provider(window.ethereum)
-const signer = provider.getSigner()
-
-const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer);
-
-// Orderbook (Bids)
-// 118257 0.2 (WETH) 2 DAI
-await otcContract.functions.buy(118257, ethers.utils.parseUnits("2", 18))
-```
-
-#### **take**
-
-This is the _byte32_ version of the **buy** function.
-
-```solidity
-function take(bytes32 id, uint128 maxTakeAmount) public
-```
-
-- **id**: An id of the offer that the send is willing to fill
-- **amount**: Amount that the user is willing to fill. Could be partial or full amount.
-- **RETURN**: Nothing. Transaction either succeeds or fails.
-
 ### **Offer management**
 
 Methods that can be called by an offer's owner.
@@ -753,16 +705,5 @@ const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer);
 
 otcContract.functions.cancel(118281)
 ```
-
-#### **kill**
-
-This is the _byte32_ version of the **cancel** function.
-
-```solidity
-function kill(bytes32 id) public
-```
-
-- **id**: An id of the offer that needs to be cancelled
-- **RETURN**: Nothing. Either the transaction is successful or fails
 
 </DocsLayout>
