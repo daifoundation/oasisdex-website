@@ -1,6 +1,5 @@
 import DocsLayout from '../../../layouts/DocsLayout';
 import { Image } from 'theme-ui';
-import { SyntaxTabs, TabItem } from '../../../components/Tabs';
 
 <DocsLayout>
 
@@ -39,21 +38,18 @@ function getBestOffer(ERC20 pay_gem, ERC20 buy_gem) public view returns(uint)
 - **buy_gem**: An address of an ERC20 token contract
 - **RETURN**: Id(number) of the best offer for **pay_gem:buy_gem** pair.
 
-<SyntaxTabs>
-  <TabItem value="seth">
+**Seth:**
 
 ```bash
 export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
 export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
 export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
 
-$ seth --to-dec $(seth call $OTC_MARKET 'getBestOffer(address,address)' $WETH \$DAI)
+$ seth --to-dec $(seth call $OTC_MARKET 'getBestOffer(address,address)' $WETH $DAI)
 118172
-
 ```
 
-  </TabItem>
-  <TabItem value="ethersjs">
+**Ethers JS (v5):**
 
 ```javascript
 const OTC_ABI = //otc contract abi defined
@@ -68,9 +64,6 @@ const bestOfferId = await otcContract.getBestOffer(WETH, DAI)
 
 console.log(bestOfferId.toString()) // 118172
 ```
-
-  </TabItem>
-</SyntaxTabs>
 
 #### **getWorseOffer(ERC20, ERC20)**
 
