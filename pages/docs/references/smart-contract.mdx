@@ -377,7 +377,7 @@ function offer(uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem, uint po
 
 This method IS NOT recommended and shouldn't be used. Such offer would not end up in the sorted list but would rather needed to be insterted by a keeper at a later date. There is no guarantee that this will ever happen.
 
-#### `insert(uint, unint)`
+#### **insert(uint, unint)**
 
 Inserts an unsorted offer to the sorted list. This method should only be used if an offer was created by `offer(uint, ERC20, uint, ERC20)` method that does not insert the offer into a sorted list automatically.
 
@@ -499,7 +499,7 @@ const signer = provider.getSigner()
 const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer);
 
 // WETH/DAI Market - Orderbook (BIDS)
-// Price (DAI)   Amount(WETH)  Total(DAI)
+// Price (DAI)   buy_amt(WETH)  pay_amt(DAI)
 // 20 DAI        0.2 WETH      4 DAI
 // 18 DAI        0.2 WETH      3.6 DAI
 // 16 DAI        0.6 WETH      7.6 DAI
@@ -570,7 +570,7 @@ const signer = provider.getSigner()
 const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer);
 
 // WETH/DAI Market - Orderbook (ASKS)
-// Price (DAI)   Amount(WETH)  Total(DAI)
+// Price (DAI)   pay_amt(WETH)  buy_amt(DAI)
 // 30 DAI        1.0 WETH      30 DAI
 // 26 DAI        0.6 WETH      15.6 DAI
 // 24 DAI        0.2 WETH      4.8 DAI
@@ -582,6 +582,65 @@ const buy_gem = WETH
 const max_fill_amt = ethers.utils.parseUnits("26.04", 18) // 5% slippage added
 
 await otcContract.functions.buyAllAmount(buy_gem, buy_amt, pay_gem, max_fill_amt)
+```
+
+  </TabItem>
+</SyntaxTabs>
+
+#### **getPayAmount(ERC20, uint, ERC20, uint)**
+
+This function returns amount of `pay_gem` tokens that need to be spent to buy specified amount of `buy_gem`. It can be used to check the current state of the orderbook.
+
+```solidity
+function getPayAmount(ERC20 pay_gem, ERC20 buy_gem, uint buy_amt) public view returns (uint fill_amt)
+```
+
+- **pay_gem**: An address of ERC20 token contract that will be sold
+- **buy_gem**: An address of ERC20 token contract that will be bought
+- **buy_amt**: Amount that the caller wants to receive
+- **RETURN**: Amount of _apy_gem_ that the caller is going to pay for receiving _buy_amt_ of _buy_gem_.
+  If there are not enough orders to fill the amount it will fail
+
+<SyntaxTabs>
+   <TabItem value="seth">
+
+```bash
+export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
+export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
+export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
+
+$ seth --from-wei $(seth --to-dec $(seth call $OTC_MARKET 'getPayAmount(address,address,uint)' $DAI $WETH $(seth --to-uint256 $(seth --to-wei 1 ether))))
+24.800000000000000000
+```
+
+  </TabItem>
+  <TabItem value="ethersjs">
+
+```javascript
+const OTC_ABI = //otc contract abi defined
+
+const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
+const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
+const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+
+const provider = new ethers.providers.Web3Provider(window.ethereum)
+const signer = provider.getSigner()
+
+const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer);
+
+// WETH/DAI Market - Orderbook (ASKS)
+// Price (DAI)   pay_amt(WETH)  buy_amt(DAI)
+// 30 DAI        1.0 WETH      30 DAI
+// 26 DAI        0.6 WETH      15.6 DAI
+// 24 DAI        0.2 WETH      4.8 DAI
+// 22 DAI        0.2 WETH      4.4 DAI
+
+const pay_gem = DAI
+const buy_amt = ethers.utils.parseUnits("1", 18)
+const buy_gem = WETH
+
+const fill_amt = await otcContract.functions.getPayAmount(pay_gem,buy_gem, buy_amt)
+console.log(ethers.utils.formatEther(fill_amt.toString())) // 24.8
 ```
 
   </TabItem>
@@ -630,7 +689,7 @@ const signer = provider.getSigner()
 const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer);
 
 // WETH/DAI Market - Orderbook (BIDS)
-// Price (DAI)   Amount(WETH)  Total(DAI)
+// Price (DAI)   buy_amt(WETH)  pay_amt(DAI)
 // 20 DAI        0.2 WETH      4 DAI
 // 18 DAI        0.2 WETH      3.6 DAI
 // 16 DAI        0.6 WETH      7.6 DAI
@@ -641,66 +700,7 @@ const pay_amt = ethers.utils.parseUnits("1", 18)
 const buy_gem = DAI
 
 const fill_amt =  await otcContract.functions.getBuyAmount(buy_gem, pay_gem, pay_amt,)
-console.log(ethers.utils.formatEther(fill_amt.toString())) // 17.2
-```
-
-  </TabItem>
-</SyntaxTabs>
-
-#### **getPayAmount(ERC20, uint, ERC20, uint)**
-
-This function returns amount of `pay_gem` tokens that need to be spent to buy specified amount of `buy_gem`. It can be used to check the current state of the orderbook.
-
-```solidity
-function getPayAmount(ERC20 pay_gem, ERC20 buy_gem, uint buy_amt) public view returns (uint fill_amt)
-```
-
-- **pay_gem**: An address of ERC20 token contract that will be sold
-- **buy_gem**: An address of ERC20 token contract that will be bought
-- **buy_amt**: Amount that the caller wants to receive
-- **RETURN**: Amount of _apy_gem_ that the caller is going to pay for receiving _buy_amt_ of _buy_gem_.
-  If there are not enough orders to fill the amount it will fail
-
-<SyntaxTabs>
-   <TabItem value="seth">
-
-```bash
-export OTC_MARKET=0xe325acb9765b02b8b418199bf9650972299235f4
-export DAI=0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa
-export WETH=0xd0a1e359811322d97991e03f863a0c30c2cf029c
-
-$ seth --from-wei $(seth --to-dec $(seth call $OTC_MARKET 'getPayAmount(address,address,uint)' $DAI $WETH $(seth --to-uint256 $(seth --to-wei 1 ether))))
-24.800000000000000000
-```
-
-  </TabItem>
-  <TabItem value="ethersjs">
-
-```javascript
-const OTC_ABI = //otc contract abi defined
-
-const OTC_MARKET='0xe325acb9765b02b8b418199bf9650972299235f4'
-const DAI='0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa'
-const WETH='0xd0a1e359811322d97991e03f863a0c30c2cf029c'
-
-const provider = new ethers.providers.Web3Provider(window.ethereum)
-const signer = provider.getSigner()
-
-const otcContract = new ethers.Contract(OTC_MARKET, OTC_ABI, signer);
-
-// WETH/DAI Market - Orderbook (ASKS)
-// Price (DAI)   Amount(WETH)  Total(DAI)
-// 30 DAI        1.0 WETH      30 DAI
-// 26 DAI        0.6 WETH      15.6 DAI
-// 24 DAI        0.2 WETH      4.8 DAI
-// 22 DAI        0.2 WETH      4.4 DAI
-
-const pay_gem = DAI
-const buy_amt = ethers.utils.parseUnits("1", 18)
-const buy_gem = WETH
-
-const fill_amt = await otcContract.functions.getPayAmount(pay_gem,buy_gem, buy_amt)
-console.log(ethers.utils.formatEther(fill_amt.toString())) // 24.8
+console.log(ethers.utils.formatEther(fill_amt.toString())) // 15.2
 ```
 
   </TabItem>
