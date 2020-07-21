@@ -18,11 +18,11 @@ import { SyntaxTabs, TabItem } from '../../../components/Tabs';
 
 ## **Matching Market**
 
-[MatchingMarket](https://github.com/daifoundation/maker-otc/blob/master/src/matching_market.sol) extends [ExpiringMarket](https://github.com/daifoundation/maker-otc/blob/master/src/expiring_market.sol) which, in turn, extends [SimpleMarket](https://github.com/daifoundation/maker-otc/blob/master/src/simple_market.sol). The base contract, SimpleMarket, provides simple storage for orders and basic order execution and settlement logic. MatchingMarket implements sorted order book by providing additional sorting structure (double-linked list). For a given market (e.g. WETH/DAI) two separate linked-lists will be used by the matching logic, one for the "buy side" and another one for the "sell side". When a new order is created, MatchingMarket will check the opposing side of the order book and if the order can be matched, it will trigger the trade. Otherwise the order will be put in the appropriate place on the order book.
+[MatchingMarket](https://github.com/daifoundation/maker-otc/blob/master/src/matching_market.sol) extends [ExpiringMarket](https://github.com/daifoundation/maker-otc/blob/master/src/expiring_market.sol) which, in turn, extends [SimpleMarket](https://github.com/daifoundation/maker-otc/blob/master/src/simple_market.sol). The base contract, SimpleMarket, provides simple storage for orders and basic order execution and settlement logic. MatchingMarket implements a sorted order book by providing additional sorting structure (double-linked list). For a given market (e.g. WETH/DAI) two separate linked-lists will be used by the matching logic, one for the "buy side" and another one for the "sell side". When a new order is created, MatchingMarket will check the opposing side of the order book and if the order can be matched, it will trigger the trade. Otherwise the order will be put in the appropriate place on the order book.
 
 ### **Orderbook Navigation**
 
-Each order on the OasisDEX indicates Market Maker’s intent to sell certain amount of tokens (`pay_gem`) for a given amount of other tokens (`buy_gem`). For a given market (e.g. WETH/DAI, where WETH is a base token and DAI is a quote token), a "sell-side" order book will contain orders to sell WETH with DAI as payment, whereas "buy-side" order book will contain orders to sell DAI with WETH as payment. For convenience, if we assume that WETH is a base token, sell orders are called "asks", while WETH buy orders (i.e. DAI sell orders) are called "bids".
+Each order on the OasisDEX indicates the Market Maker’s intent to sell a certain amount of tokens (`pay_gem`) for a given amount of other tokens (`buy_gem`). For a given market (e.g. WETH/DAI, where WETH is a base token and DAI is a quote token), a "sell-side" order book will contain orders to sell WETH with DAI as payment, whereas "buy-side" order book will contain orders to sell DAI with WETH as payment. For convenience, if we assume that WETH is a base token, sell orders are called "asks", while WETH buy orders (i.e. DAI sell orders) are called "bids".
 
 #### **getBestOffer(ERC20, ERC20)**
 
@@ -121,7 +121,7 @@ console.log(worseOfferId.toString()) // 13
 #### **getBetterOffer(uint)**
 
 This method is used to get the next offer in the sorted linked list. If the offer passed as the argument to the call is an _ask_, then the offer returned will have lower price.
-If the current offer is a `bid`, then the offer returned will have higher price.
+If the current offer is a `bid`, then the offer returned will have a higher price.
 
 ```solidity
 function getBetterOffer(uint id) public view returns(uint)
@@ -293,9 +293,9 @@ Calling this method might have three outcomes:
 
 - Offer is not matched and is put into the order book - caller becomes Maker
 - Offer is fully matched - caller becomes Taker
-- Offer is partially matched - caller is both Maker and Taker. The remaining of the unfilled offer will be placed as a new order.
+- Offer is partially matched - caller is both Maker and Taker. The remainder of the unfilled offer will be placed as a new order.
 
-When creating new offer, funds are transffered to the contract's escrow ensuring that settlement is always possible.
+When creating a new offer, funds are transferred to the contract's escrow ensuring that settlement is always possible.
 
 ```solidity
 function offer(uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem, uint pos) public can_offer returns (uint)
@@ -308,19 +308,19 @@ function offer(uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem, uint po
 - **pos**: Position where to insert the new offer. 0 should be used if unknown.
 - **RETURN**: Id of the newly created offer.
 
-##### `pos` parameter
+**`pos` parameter**
 
-`pos` is the **OFFER ID** of the first offer that has higher (or lower depending on wether it is `bid` or `ask` ) price than the new offer that the caller is making.
+`pos` is the **OFFER ID** of the first offer that has a higher (or lower depending on whether it is `bid` or `ask` ) price than the new offer that the caller is making.
 
 Offers are stored in a sorted linked list and `pos` is a hint to the matching engine, where should it start searching for a place to insert the new offer.
 
-If you pass `pos=0` this means that the contract will have to search order list from the very begining. In the worst case, this can end up using a lot of gas or even cause tx revert.
+If you pass `pos=0` this means that the contract will have to search the order list from the very beginning. In the worst case, this can end up using a lot of gas or even causing the transaction to revert.
 
-Providing `pos` that is exactly correct is challening due to the various factors (ie. mempool frontrunning), but it's sufficient to provide `pos` close to the expected value. Matching engine will iterate from that place in a sorted list to find the correct location. The closer you are from the real position, the less amount of gas the contract will spend.
+Providing a `pos` that is correct is challenging due to the various factors (ie. mempool frontrunning), but it's sufficient to provide `pos` close to the expected value. Matching engine will iterate from that place in a sorted list to find the correct location. The closer you are from the real position, the lower the amount of gas the contract will spend.
 
-##### Rounding behaviour
+**Rounding behaviour**
 
-The default rounding behaviour will match offers that differ in the price indicated by taker by 1 WEI. If this is not desirable `offer` function with additional parameter `rounding` set to `false` should be used instead.
+The default rounding behaviour will match offers that differ in the price indicated by taker by 1 WEI. If this is not desirable, then you can use the `offer` function with additional parameter `rounding` set to `false` should be used instead.
 
 <SyntaxTabs>
   <TabItem value="ethersjs">
@@ -375,11 +375,11 @@ function offer(uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem, uint po
 
 #### **offer(uint, ERC20, uint, ERC20)**
 
-This method IS NOT recommended and shouldn't be used. Such offer would not end up in the sorted list but would rather needed to be insterted by a keeper at a later date. There is no guarantee that this will ever happen.
+This method IS NOT recommended and shouldn't be used. Such an offer would not end up in the sorted list but would rather need to be inserted by a keeper at a later date. There is no guarantee that this will ever happen.
 
 #### **insert(uint, unint)**
 
-Inserts an unsorted offer to the sorted list. This method should only be used if an offer was created by `offer(uint, ERC20, uint, ERC20)` method that does not insert the offer into a sorted list automatically.
+Inserts an unsorted offer to the sorted list. This method should only be used if an offer was created by an `offer(uint, ERC20, uint, ERC20)` method that does not insert the offer into a sorted list automatically.
 
 ```solidity
 function insert(uint offerId, uint pos) public returns (bool)
@@ -394,14 +394,14 @@ function insert(uint offerId, uint pos) public returns (bool)
 **Offer** method described in the _Placing orders_ section above could be used to take/fill orders.
 By placing a new order which fills completely or partially an existing one, the caller is partially or completely a _market taker_. The `offer` method takes advantage of the automatic matching engine but it does not guarantee the caller of the method will always be a taker and their offer may end up resting on the orderbook, if it cannot be matched.
 
-Another method that the Taker can use is the `buy` method which fills a specific order (not necessarly the best one). This method can be used if the taker wants skip the matching (which will save gas) however, there is no best price guarantee, hence it should be used with caution.
+Another method that the Taker can use is the `buy` method which fills a specific order (not necessarily the best one). This method can be used if the taker wants to skip the matching (which will save gas) however, there is no best price guarantee, hence it should be used with caution.
 
 Finally, there are two additional methods (`sellAllAmount` and `buyAllAmount`) that provide fill or kill order semantics ie. the takers offer will be fully matched or it will revert.
 
 #### **buy(uint, uint)**
 
 The buy function is used to fill a specific order (“cherrypicks”). By calling this function, it will execute and settle a trade all within one atomic transaction.
-It will transfers funds from caller to offer maker, and from maker (escrow) to caller.
+It will transfer funds from caller to offer maker, and from maker (escrow) to caller.
 
 ```solidity
 function buy(uint id, uint amount) public can_buy(id) synchronized returns (bool)
@@ -460,7 +460,7 @@ function sellAllAmount(ERC20 pay_gem, uint pay_amt, ERC20 buy_gem, uint min_fill
 - **buy_gem**: An address of an ERC20 token contract that will be bought
 - **min_fill_amount** - The least amount that the caller is willing to receive.
   If slippage happens and price declines the user might end up with less of the _buy_gem_.
-  In order to avoid big losses the caller should provide threshold.
+  In order to avoid big losses the caller should provide this threshold.
 - **RETURN**: - An amount that has been received in exchange for _pay_amt_
 
 **Example**: Let's assume the bid side of the _WETH/DAI_ orderbook:
@@ -470,7 +470,7 @@ function sellAllAmount(ERC20 pay_gem, uint pay_amt, ERC20 buy_gem, uint min_fill
 - **buy_amt**: 0.6 WETH, **pay_amt**: 7.6 DAI (**price**: 16 DAI)
 - **buy_amt**: 1.0 WETH, **pay_amt**: 10.0 DAI (**price**: 10 DAI)
 
-If the user wanted to sell **1 WETH** they would receive 15.2 DAI. To guarantee this amount, the user could specify `min_fill_amount` value. As the orderbook might change before this order is mined (and executed), the additional slippage can be taken into account and `min_fill_amount` value can be set to 14.44 DAI (5% slippage). This will improve the chance of the order being executed, hovewer it will increase the likelihood of being frontrun by market making bots.
+If the user wanted to sell **1 WETH** they would receive 15.2 DAI. To guarantee this amount, the user could specify `min_fill_amount` value. As the orderbook might change before this order is mined (and executed), the additional slippage can be taken into account and `min_fill_amount` value can be set to 14.44 DAI (5% slippage). This will improve the chance of the order being executed, hovever it will increase the likelihood of being front run by market making bots.
 
 <SyntaxTabs>
    <TabItem value="seth">
@@ -531,7 +531,7 @@ function buyAllAmount(ERC20 buy_gem, uint buy_amt, ERC20 pay_gem, uint max_fill_
 - **pay_gem**: An address of an ERC20 token contract that will be sold
 - **max_fill_amount** - The most amount that the caller is willing to pay.
   If slippage happens and price increases the user might end up with paying more of the _pay_gem_.
-  In order to avoid big losses the caller should provide threshold.
+  In order to avoid big losses the caller should provide this threshold.
 - **RETURN**: - An amount that has been paid for _buy_amt_
 
 **Example**: Let's assume this ask side of the _WETH/DAI_ orderbook:
@@ -541,7 +541,7 @@ function buyAllAmount(ERC20 buy_gem, uint buy_amt, ERC20 pay_gem, uint max_fill_
 - **pay_amt**: 0.2 WETH, **buy_amt**: 4.8 DAI (**price**: 24 DAI)
 - **pay_amt**: 0.2 WETH, **buy_amt**: 4.4 DAI (**price**: 22 DAI)
 
-If the user wanted to buy exactly **1 WETH** they would have to pay 24.8 DAI. To guarantee this amount, the user could specify `max_fill_amount` value. As the orderbook might change before this order is mined (and executed), the additional slippage can be taken into account and `max_fill_amount` value can be set to 26.04 DAI (5% slippage). This will improve the chance of the order being executed, hovewer it will increase the likelihood of being frontrun by market making bots.
+If the user wanted to buy exactly **1 WETH** they would have to pay 24.8 DAI. To guarantee this amount, the user could specify `max_fill_amount` value. As the orderbook might change before this order is mined (and executed), the additional slippage can be taken into account and `max_fill_amount` value can be set to 26.04 DAI (5% slippage). This will improve the chance of the order being executed, hovever it will increase the likelihood of being front run by market making bots.
 
 <SyntaxTabs>
    <TabItem value="seth">
@@ -589,7 +589,7 @@ await otcContract.functions.buyAllAmount(buy_gem, buy_amt, pay_gem, max_fill_amt
 
 #### **getPayAmount(ERC20, uint, ERC20, uint)**
 
-This function returns amount of `pay_gem` tokens that need to be spent to buy specified amount of `buy_gem`. It can be used to check the current state of the orderbook.
+This function returns the amount of `pay_gem` tokens that need to be spent to buy a specified amount of `buy_gem`. It can be used to check the current state of the orderbook.
 
 ```solidity
 function getPayAmount(ERC20 pay_gem, ERC20 buy_gem, uint buy_amt) public view returns (uint fill_amt)
@@ -648,7 +648,7 @@ console.log(ethers.utils.formatEther(fill_amt.toString())) // 24.8
 
 #### **getBuyAmount(ERC20, uint, ERC20, uint)**
 
-This function returns amount of `buy_gem` tokens if `pay_gem` tokens are spent. It can be used to check the current state of the orderbook.
+This function returns the amount of `buy_gem` tokens if `pay_gem` tokens are spent. It can be used to check the current state of the orderbook.
 
 ```solidity
 function getBuyAmount(ERC20 buy_gem, ERC20 pay_gem, uint pay_amt) public view returns (uint fill_amt)
@@ -708,7 +708,7 @@ console.log(ethers.utils.formatEther(fill_amt.toString())) // 15.2
 
 ### **Offer management**
 
-Methods that can be called by an offer's owner.
+Methods that can be called by the owner of the offer.
 
 #### **cancel(uint)**
 
