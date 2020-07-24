@@ -7,32 +7,13 @@ import BaseLayout from '../layouts/BaseLayout';
 
 const NAV_ITEMS = [
   {
-    name: 'Introduction',
-    items: [
-      { name: 'Getting started', link: '/introduction/getting-started' },
-      {
-        name: 'Design Considerations',
-        link: '/introduction/design-considerations',
-      },
-      {
-        name: 'OasisDEX vs Uniswap',
-        link: '/introduction/oasisdex-uniswap',
-      },
-      {
-        name: 'Key terms',
-        link: '/introduction/key-terms',
-      },
-      {
-        name: 'Order types',
-        link: '/introduction/order-types',
-      },
-    ],
-  },
-  {
     name: 'Guides',
     items: [
-      { name: 'Basic trading', link: '/guides/basics' },
-      { name: 'Using proxy', link: '/guides/use-proxy' },
+      { name: 'Introduction', link: '/guides/introduction' },
+      {
+        name: 'Usage with Proxy',
+        link: '/guides/use-proxy',
+      },
     ],
   },
   {
