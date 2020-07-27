@@ -1,9 +1,9 @@
-import DocsLayout from '../../layouts/DocsLayout';
+import DocsLayout from '../../../layouts/DocsLayout';
 import { Image } from 'theme-ui';
 
 <DocsLayout>
 
-# Intro to the OasisDEX Protocol
+# Introduction to the OasisDEX Protocol
 
 **Level**: Beginner  
 **Estimated Time**: 45 - 60 minutes
@@ -75,7 +75,7 @@ To find all the functions available for this contract, check the source code on 
 
 Before starting with the orders, let's setup the necessary env variables in your terminal. You'll need the main [maker-otc](https://kovan.etherscan.io/address/0xe325acB9765b02b8b418199bf9650972299235F4#code) (OASISDEX) contract address, the [DAI](https://kovan.etherscan.io/address/0x4F96Fe3b7A6Cf9725f59d353F723c1bDb64CA6Aa#code) token and the [WETH](https://kovan.etherscan.io/address/0xd0a1e359811322d97991e03f863a0c30c2cf029c#code) token address:
 
-```
+```bash
 export OASIS=0xe325acB9765b02b8b418199bf9650972299235F4
 export DAI=0x4F96Fe3b7A6Cf9725f59d353F723c1bDb64CA6Aa
 export WETH=0xd0A1E359811322d97991E03f863a0C30C2cF029C
@@ -88,19 +88,19 @@ Now we need to approve the OASISDEX contract to take funds from your wallet, DAI
 
 Let's define the amount we want to allow OASISDEX to withdraw. We'll set an equal amount for both tokens of 100,000. If you want to trade with higher units, just update the `$ALLOWANCE` to your preferred value.
 
-```
+```bash
 export ALLOWANCE=$(seth --to-uint256 $(seth --to-wei 100000 eth))
 ```
 
 To approve OASISDEX in DAI, execute the below command:
 
-```
+```bash
 seth send $DAI 'approve(address,uint256)' $OASIS $ALLOWANCE
 ```
 
 To approve OASISDEX in WETH, execute the below command:
 
-```
+```bash
 seth send $WETH 'approve(address,uint256)' $OASIS $ALLOWANCE
 ```
 
@@ -122,23 +122,27 @@ Say we want to find the best offer on the WETH/DAI market, i.e. we want to purch
 
 Let's get the id of the best offer of the WETH/DAI market. The command below gets the id of the best offer and converts it to a decimal number.
 
-```
+```bash
 seth --to-dec $(seth call $OASIS 'getBestOffer(address,address)' $DAI $WETH)
 ```
 
-Output: `3411`
+Output:
+
+```bash
+3411
+```
 
 **Note**: You will get a different order id, so make sure to change the parameters to the id from your terminal.
 
 Now we can find more information about this order by using the getOffer(uint id) function. This function returns the pay and buy amount of each token respectively. Execute the below command to find order details of order `3411`:
 
-```
+```bash
 seth call $OASIS 'getOffer(uint)(uint,address,uint,address)' 3411
 ```
 
 Output:
 
-```
+```bash
 8ac7230489e80000 -> Pay amount in DAI
 4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa -> DAI Token Address
 6345785d8a0000 -> Buy amount in WETH
@@ -147,7 +151,7 @@ d0a1e359811322d97991e03f863a0c30c2cf029c -> WETH Token Address
 
 You can convert the hex outputs of DAI and WETH amounts to decimal:
 
-```
+```bash
 seth --from-wei $(seth --to-dec 8ac7230489e80000)
 seth --from-wei $(seth --to-dec 16345785d8a0000)
 ```
@@ -168,7 +172,7 @@ In our case, we can set pos parameter to 3411. This way, the engine will know ex
 
 With seth, we need to convert our 15 Dai units to eth denomination, i.e. setting the number to 18 decimal points. Hence, you’ll see \$(seth --to-wei 15 eth).
 
-```
+```bash
 export pay=$(seth --to-uint256 $(seth --to-wei 15 eth))
 export buy=$(seth --to-uint256 $(seth --to-wei 0.084745 eth))
 export pos=3411
@@ -176,7 +180,7 @@ export pos=3411
 
 Let's execute the offer function:
 
-```
+```bash
 seth send $OASIS 'offer(uint,address,uint,address,uint)' $pay $DAI $buy $WETH $pos
 ```
 
@@ -198,7 +202,7 @@ The limit sell order consists of selling WETH for DAI. We can do a sell order wi
 
 Update the env variables:
 
-```
+```bash
 export pay=$(seth --to-uint256 $(seth --to-wei 0.05 eth))
 export buy=$(seth --to-uint256 $(seth --to-wei 8.885 eth))
 export pos=1
@@ -206,7 +210,7 @@ export pos=1
 
 Execute the below command to set a sell limit order:
 
-```
+```bash
 seth send $OASIS 'offer(uint,address,uint,address,uint)' $pay $WETH $buy $DAI $pos
 ```
 
@@ -221,7 +225,7 @@ Making a limit order and letting the contract match you with existing orders as 
 Let's buy some DAI that is being sold at 177 DAI/WETH.  
 First, let's get the order id of this offer:
 
-```
+```bash
 seth --to-dec $(seth call $OASIS 'getBestOffer(address,address)' $DAI $WETH)
 ```
 
@@ -229,13 +233,13 @@ Output: `3423`
 
 Now, let's define the amount we want to buy. We can see that this order offers 15 Dai. Let's buy 8.885 DAI.
 
-```
+```bash
 export buy=$(seth --to-uint256 $(seth --to-wei 8.885 eth))
 ```
 
 After setting the parameters, now we can invoke the buy() function.
 
-```
+```bash
 seth send $OASIS 'buy(uint,uint)' 3423 $buy
 ```
 
@@ -250,7 +254,7 @@ Cancelling your order can be executed by the cancel(uint id) function. So, if we
 
 Execute bellow command to cancel order 3423
 
-```
+```bash
 seth send $OASIS 'cancel(uint id)' 3423
 ```
 

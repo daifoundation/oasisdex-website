@@ -7,7 +7,7 @@ const USER_CASES = [
     heading: 'Boost liquidity and give your users the best price',
     description:
       'Give your users the best price on the market by increasing liquidity. OasisDEX allows anyone to trustlessly integrate with the protocol.',
-    link: '/docs/introduction',
+    link: '/docs/guides/introduction',
     icon: 'liquidity',
     color: 'liquidity',
   },
@@ -15,7 +15,7 @@ const USER_CASES = [
     heading: 'Make markets and compete for profit opportunities',
     description:
       'Automate your arbitrage profit seeking strategy by running scripts with OasisDEX smart contracts.',
-    link: '/docs/introduction',
+    link: '/docs/guides/introduction',
     icon: 'profit',
     color: 'profit',
   },
@@ -23,7 +23,7 @@ const USER_CASES = [
     heading: 'Grow the ecosystem with your own front-end',
     description:
       'Strengthen the ecosystem by building your own front-end on OasisDEX. Provide your users with on-chain order book functionality.',
-    link: '/docs/introduction',
+    link: '/docs/guides/introduction',
     icon: 'growth',
     color: 'growth',
   },

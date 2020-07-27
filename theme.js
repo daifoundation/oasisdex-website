@@ -1,5 +1,6 @@
 import oasisTheme from '@makerdao/dai-ui-theme-oasis';
 import { icons } from '@makerdao/dai-ui-icons';
+import syntaxHighlightingPreset from '@theme-ui/prism/presets/github';
 
 const theme = {
   ...oasisTheme,
@@ -485,6 +486,10 @@ const theme = {
     ...oasisTheme.styles,
     h4: {
       variant: 'text.microHeading',
+    },
+    code: {
+      ...oasisTheme.styles.code,
+      ...syntaxHighlightingPreset,
     },
   },
   metadata: {
