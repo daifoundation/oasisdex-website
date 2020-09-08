@@ -14,6 +14,8 @@ const NAV_ITEMS = [
         name: 'Usage with Proxy',
         link: '/guides/use-proxy',
       },
+      { name: 'Market Maker Guide', link: '/guides/market-maker-guide' },
+      { name: 'Market Taker Guide', link: '/guides/market-taker-guide' },
     ],
   },
   {
