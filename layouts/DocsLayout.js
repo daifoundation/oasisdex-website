@@ -7,6 +7,10 @@ import BaseLayout from '../layouts/BaseLayout';
 
 const NAV_ITEMS = [
   {
+    name: 'Announcements',
+    items: [{ name: 'OasisDEX 1.1 upgrade', link: '/announcements/oasis1-1' }],
+  },
+  {
     name: 'Guides',
     items: [
       { name: 'Introduction', link: '/guides/introduction' },
