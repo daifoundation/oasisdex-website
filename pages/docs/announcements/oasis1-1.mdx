@@ -1,0 +1,85 @@
+import DocsLayout from '../../../layouts/DocsLayout';
+
+<DocsLayout>
+
+# OasisDEX 1.1 upgrade
+
+## Overview
+
+The current OasisDEX contract (`0x794e6e91555438aFc3ccF1c5076A74F42133d08D`) expires and will automatically shut down on `04-February-2021 at 12:00 AM UTC` (`2021-02-04T12:00:00+00:00`). After this date, the contract will no longer allow the creation of new orders. At the same time, anyone — not just the Maker of the order — will be able to cancel any order placed with this contract.
+
+According to the timeline below, an upgraded version of OasisDEX – OasisDEX 1.1 – will be deployed prior to the old contract’s expiration date. OasisDEX 1.1 implements minimal changes that remove any remaining “administrative” parameters (for details, refer to the [Change-log](#change-log) section).
+
+## New OasisDEX 1.1 contract details
+
+**Mainnet Address**: TO BE DEPLOYED
+
+**Kovan Address**: TO BE DEPLOYED
+
+**Planned deployment date**: 29-Jan-2021
+
+**Expiration date**: Not Applicable
+
+## Expiring OasisDEX contract details
+
+**Mainnet Address**: `0x794e6e91555438aFc3ccF1c5076A74F42133d08D`
+
+**Expiration date**: `04-Feb-2021 at 12:00 AM UTC (2021-02-04T12:00:00+00:00)`
+
+## Change-log
+
+OasisDEX v1.1 introduces the following changes:
+
+- Removing the contract’s Expiration Date (the contract will no longer require redeployments)
+- The Dust Limit is automatically determined using Uniswap v2 as the price oracle (in the expiring version, the Dust Limit was controlled by a specific address)
+- Allowing anyone to cancel orders below Dust Limit
+- Supporting non-compliant ERC-20 tokens (tokens, which don’t return a `bool` on successful transfers like OMG or USDT)
+- Removing remaining “administrative” methods: shutting down the market and stopping the matching engine
+
+## Dust Limit
+
+The Dust Limit parameter was designed to filter out small orders, which protects the matching engine from using more gas than necessary. A “small order” is where the order's value is lower than the cost of gas required for its execution in USD terms.
+
+### Change-log
+
+In the expiring version, the Dust Limit was a parameter controlled by a specific address.
+
+In the OasisDEX 1.1 version, the Dust Limit is automatically determined using Uniswap V2 as a price oracle.
+
+**Note**: For the tokens not supported by Uniswap V2, the Dust Limit is not set. Trading such tokens is still possible; however, may encounter problems related to the “dust transaction” issue and using more gas than necessary.
+
+### Potential risks: Dust Limit parameter manipulation
+
+The Uniswap price for a particular token pair can be manipulated, resulting in setting a skewed value of the Dust Limit parameter on the OasisDEX 1.1. In a negative scenario, an attacker could cancel some existing orders and create small (dust) orders that would make the matching engine use more gas than necessary.
+
+Users of OasisDEX 1.1 software should make themselves aware of these and other potential issues and analyze possible attack vectors that may apply in their specific situation. Other attack vectors may not be excluded, now or in the future.
+
+## Impact on the existing orders
+
+After the old OasisDEX contract expires, any pre-existing orders will remain until they are manually canceled. At the same time, any funds will be locked in the contract until the corresponding orders are manually canceled.
+
+## Action items
+
+- Market makers should consider moving their liquidity to the new contract after it has been deployed and prior to the old contract's expiration date (for details, refer to the Timeline section below).
+- Legacy OasisDEX traders should consider canceling their existing orders manually to unlock their funds.
+
+## Oasis.app/trade update
+
+As of `2-Feb-2021`, an updated version of the Oasis.app/trade interface will use the new OasisDEX 1.1 contract. At the same time, a link on the interface pointing to the old contract will be provided to allow the cancellation of the stale orders.
+
+## Timeline
+
+- `27-Jan-2021`: An alert informing about the upgrade will be displayed on the Oasis.app/trade main page.
+- `29-Jan-2021`: The new OasisDEX 1.1 contract will be deployed.
+- `02-Feb-2021`: The main page of [Oasis.app/trade](https://oasis.app/trade/market) will point to the new OasisDEX 1.1 contract. A link pointing to the old contract will be provided.
+- `04-Feb 2021`: The old OasisDEX contract will expire on `04-Feb-2021 at 12:00 AM UTC (2021-02-04 T12:00:00+00:00)`
+
+## Source code
+
+https://github.com/daifoundation/maker-otc/pull/192
+
+## Questions & feedback
+
+Please leave any feedback or questions on the Oasis RocketChat channel: https://chat.makerdao.com/channel/oasis.
+
+</DocsLayout>

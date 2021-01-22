@@ -6,7 +6,7 @@ import { useState } from 'react';
 
 const LINKS = [
   { url: '/', name: 'Home' },
-  { url: '/docs/guides/introduction', name: 'Docs' },
+  { url: '/docs/announcements/oasis1-1', name: 'Docs' },
   { url: '/faq', name: 'FAQs' },
 ];
 
